@@ -52,10 +52,10 @@ jobs:
 
       - name: Build release
         env:
-         KEYSTORE_PATH: ${{ github.workspace }}/cleantv-release.jks
-         KEYSTORE_PASSWORD: testpass123
-         KEY_ALIAS: testkey
-         KEY_PASSWORD: testpass123
+         RELEASE_STORE_FILE: ${{ github.workspace }}/cleantv-release.jks
+         RELEASE_STORE_PASSWORD: testpass123
+         RELEASE_KEY_ALIAS: testkey
+         RELEASE_KEY_PASSWORD: testpass123
         run: |
           cd tv-launcher
           chmod +x gradlew
