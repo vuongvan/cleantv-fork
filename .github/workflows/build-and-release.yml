@@ -45,8 +45,8 @@ jobs:
         run: |
           keytool -genkeypair -v \
           -keystore cleantv-release.jks \
-           -alias testkey \
-           -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias testkey \
+          -keyalg RSA -keysize 2048 -validity 10000 \
           -storepass testpass123 -keypass testpass123 \
           -dname "CN=Test, OU=Dev, O=Test, L=HN, C=VN"
 
