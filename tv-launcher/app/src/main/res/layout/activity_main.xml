@@ -143,6 +143,22 @@
                             android:fontFamily="@font/outfit_regular"
                             android:letterSpacing="0.14"
                             android:textAllCaps="true" />
+
+                        <!-- Vietnamese lunar date ("Âm lịch 14/9 · Bính Ngọ"). Outfit has no glyphs for
+                             most Vietnamese letters, so this line uses the system font. -->
+                        <TextView
+                            android:id="@+id/lunarDate"
+                            android:gravity="left"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="#8CFFFFFF"
+                            android:textSize="13sp"
+                            android:fontFamily="sans-serif"
+                            android:includeFontPadding="false"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
