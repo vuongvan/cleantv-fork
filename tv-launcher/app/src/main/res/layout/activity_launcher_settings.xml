@@ -111,6 +111,23 @@
             android:textSize="14sp" />
 
         <TextView
+            android:id="@+id/favoritesBottomChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="18dp" />
+
+        <TextView
+            android:id="@+id/chooseWallpaperChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/choose_wallpaper" />
+
+        <TextView
+            android:id="@+id/removeWallpaperChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/remove_wallpaper" />
+
+        <TextView
             android:id="@+id/resetFavoritesChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="18dp"
