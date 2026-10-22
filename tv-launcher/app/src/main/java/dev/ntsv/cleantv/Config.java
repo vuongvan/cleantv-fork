@@ -32,6 +32,12 @@ final class Config {
     static final String FILE_NAME = "config.json";
     static final String WALLPAPER_NAME = "wallpaper.jpg";
     static final String SETTINGS_NAME = "launcher_settings";
+    /** On-TV choices (SharedPreferences SETTINGS_NAME) added for the lunar date, hideable rows and pinned apps. */
+    static final String KEY_LUNAR_DATE = "lunar_date";
+    static final String KEY_RAIL_CHANNELS = "rail_channels";
+    static final String KEY_RAIL_INPUTS = "rail_inputs";
+    static final String KEY_RAIL_ALL_APPS = "rail_all_apps";
+    static final String KEY_PINNED_APPS = "pinned_apps";
     private static final String THEME_REVISION_NAME = "theme_revision";
     private static final String THEME_SIGNATURE_KEY = "theme_signature";
 
@@ -47,6 +53,12 @@ final class Config {
     final boolean advancedEffects;
     final int rowsBelowDock;
     final boolean shamsiDate;
+    /** Vietnamese lunar date under the Gregorian one (on-TV choice "lunar_date", default on). */
+    final boolean lunarDate;
+    /** Rows that can be hidden from the home screen (on-TV choices); Favorite Apps is always shown. */
+    final boolean showChannelsRail;
+    final boolean showInputsRail;
+    final boolean showAllAppsRail;
     final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
@@ -64,7 +76,9 @@ final class Config {
     private Config(List<String> dockApps, List<String> hiddenApps, String liveTvPackage, String liveTvAction,
                    String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
-                   boolean shamsiDate, boolean moduleCards, boolean reducedMotion, String vpnApp,
+                   boolean shamsiDate, boolean lunarDate, boolean showChannelsRail,
+                   boolean showInputsRail, boolean showAllAppsRail,
+                   boolean moduleCards, boolean reducedMotion, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, boolean overlayApplied) {
         this.dockApps = Collections.unmodifiableList(dockApps);
@@ -79,6 +93,10 @@ final class Config {
         this.animations = animations;
         this.advancedEffects = advancedEffects;
         this.shamsiDate = shamsiDate;
+        this.lunarDate = lunarDate;
+        this.showChannelsRail = showChannelsRail;
+        this.showInputsRail = showInputsRail;
+        this.showAllAppsRail = showAllAppsRail;
         this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
         this.vpnApp = vpnApp;
@@ -148,6 +166,14 @@ final class Config {
         if (chosenColumns >= 4 && chosenColumns <= 7) columns = chosenColumns;
         animations = choices.getBoolean("animations", animations);
         advancedEffects = choices.getBoolean("advanced_effects", advancedEffects);
+        // Favorites the owner pinned on the TV replace the built-in dock_apps list; they are kept
+        // when a theme is pushed, since they are a personal choice and not part of the look.
+        List<String> pinned = loadPinned(choices);
+        if (pinned != null) dock = pinned;
+        boolean lunar = choices.getBoolean(KEY_LUNAR_DATE, true);
+        boolean showChannels = choices.getBoolean(KEY_RAIL_CHANNELS, true);
+        boolean showInputs = choices.getBoolean(KEY_RAIL_INPUTS, true);
+        boolean showAllApps = choices.getBoolean(KEY_RAIL_ALL_APPS, true);
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
         if (wallpaper != null && !(wallpaper.isFile() && wallpaper.length() > 0)) wallpaper = null;
         // A theme can also switch the wallpaper off while the file is still there.
@@ -155,8 +181,25 @@ final class Config {
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, moduleCards, reducedMotion, vpn, homeSettings, background,
+                shamsi, lunar, showChannels, showInputs, showAllApps,
+                moduleCards, reducedMotion, vpn, homeSettings, background,
                 Math.max(0, Math.min(100, skyIntensity)), wallpaper, applied);
+    }
+
+    /** Pinned packages in order, or null when the owner never pinned anything (dock_apps applies). */
+    static List<String> loadPinned(SharedPreferences choices) {
+        String raw = choices.getString(KEY_PINNED_APPS, null);
+        if (raw == null) return null;
+        List<String> out = new ArrayList<>();
+        for (String pkg : raw.split("\\n")) {
+            if (!pkg.trim().isEmpty()) out.add(pkg.trim());
+        }
+        return out;
+    }
+
+    /** An empty list is saved as empty (nothing pinned), which is different from never having chosen. */
+    static void savePinned(SharedPreferences choices, List<String> pinned) {
+        choices.edit().putString(KEY_PINNED_APPS, android.text.TextUtils.join("\n", pinned)).apply();
     }
 
     private static void syncThemeChoices(SharedPreferences choices, File dir, File config) {

@@ -17,9 +17,17 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
+    private TextView lunarChoice;
+    private TextView railChannelsChoice;
+    private TextView railInputsChoice;
+    private TextView railAllAppsChoice;
     private int columns;
     private boolean animations;
     private boolean advancedEffects;
+    private boolean lunarDate;
+    private boolean showChannelsRail;
+    private boolean showInputsRail;
+    private boolean showAllAppsRail;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -30,6 +38,10 @@ public final class LauncherSettingsActivity extends Activity {
         columns = config.columns;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+        lunarDate = config.lunarDate;
+        showChannelsRail = config.showChannelsRail;
+        showInputsRail = config.showInputsRail;
+        showAllAppsRail = config.showAllAppsRail;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -75,6 +87,40 @@ public final class LauncherSettingsActivity extends Activity {
             advancedEffects = current.animations && current.advancedEffects;
             setResult(RESULT_OK);
             refresh();
+        });
+        // Home screen: lunar date, hideable rows, pinned apps. MainActivity rebuilds on RESULT_OK.
+        lunarChoice = findViewById(R.id.lunarChoice);
+        lunarChoice.setOnClickListener(v -> {
+            lunarDate = !lunarDate;
+            choices.edit().putBoolean(Config.KEY_LUNAR_DATE, lunarDate).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        railChannelsChoice = findViewById(R.id.railChannelsChoice);
+        railChannelsChoice.setOnClickListener(v -> {
+            showChannelsRail = !showChannelsRail;
+            choices.edit().putBoolean(Config.KEY_RAIL_CHANNELS, showChannelsRail).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        railInputsChoice = findViewById(R.id.railInputsChoice);
+        railInputsChoice.setOnClickListener(v -> {
+            showInputsRail = !showInputsRail;
+            choices.edit().putBoolean(Config.KEY_RAIL_INPUTS, showInputsRail).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        railAllAppsChoice = findViewById(R.id.railAllAppsChoice);
+        railAllAppsChoice.setOnClickListener(v -> {
+            showAllAppsRail = !showAllAppsRail;
+            choices.edit().putBoolean(Config.KEY_RAIL_ALL_APPS, showAllAppsRail).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        findViewById(R.id.resetFavoritesChoice).setOnClickListener(v -> {
+            choices.edit().remove(Config.KEY_PINNED_APPS).apply();
+            Toast.makeText(this, R.string.reset_favorites_done, Toast.LENGTH_SHORT).show();
+            setResult(RESULT_OK);
         });
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
             Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
@@ -425,6 +471,14 @@ public final class LauncherSettingsActivity extends Activity {
         advancedChoice.setEnabled(animations);
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
         followThemeChoice.setSelected(!hasOnTvChoices());
+        lunarChoice.setText(getString(R.string.lunar_date_state,
+                getString(lunarDate ? R.string.on : R.string.off)));
+        railChannelsChoice.setText(getString(R.string.rail_channels_state,
+                getString(showChannelsRail ? R.string.rail_shown : R.string.rail_hidden)));
+        railInputsChoice.setText(getString(R.string.rail_inputs_state,
+                getString(showInputsRail ? R.string.rail_shown : R.string.rail_hidden)));
+        railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
+                getString(showAllAppsRail ? R.string.rail_shown : R.string.rail_hidden)));
     }
 
     private boolean hasOnTvChoices() {

@@ -59,6 +59,14 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
         notifyDataSetChanged();
     }
 
+    /** Adapter position of a rail type, or -1 when that rail is hidden. */
+    public int positionOfType(int type) {
+        for (int i = 0; i < rails.size(); i++) {
+            if (rails.get(i).type == type) return i;
+        }
+        return -1;
+    }
+
     @NonNull
     @Override
     public RailViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {

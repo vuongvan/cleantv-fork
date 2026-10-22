@@ -110,6 +110,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView btnWifi;
     private TextView shamsiDate;
     private boolean shamsi;
+    private TextView lunarDate;
+    private boolean lunar;
+    /** Favorite apps in order: dock_apps, or what the owner pinned on the TV (long-press an app). */
+    private List<String> pinnedApps = new ArrayList<>();
+    private boolean showChannelsRail = true;
+    private boolean showInputsRail = true;
+    private boolean showAllAppsRail = true;
 
     // STB & LCN Channels Engine
     private LcnDatabaseHelper dbHelper;
@@ -267,6 +274,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             date.setTextSize(11f);
             date.setPadding(0, (int) (4 * density), 0, 0);
         }
+        lunarDate = findViewById(R.id.lunarDate);
+        lunar = cfg.lunarDate && lunarDate != null;
+        if (lunarDate != null) lunarDate.setVisibility(lunar ? View.VISIBLE : View.GONE);
+        pinnedApps = new ArrayList<>(cfg.dockApps);
+        showChannelsRail = cfg.showChannelsRail;
+        showInputsRail = cfg.showInputsRail;
+        showAllAppsRail = cfg.showAllAppsRail;
         vpnApp = cfg.vpnApp;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
@@ -288,8 +302,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
             @Override
             public boolean onNavigateDown(int position) {
-                focusRail(RailsAdapter.RAIL_CHANNELS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_APPS, 1);
             }
         });
 
@@ -298,14 +311,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         channelsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
             @Override
             public boolean onNavigateUp(int position) {
-                focusRail(RailsAdapter.RAIL_APPS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_CHANNELS, -1);
             }
 
             @Override
             public boolean onNavigateDown(int position) {
-                focusRail(RailsAdapter.RAIL_INPUTS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_CHANNELS, 1);
             }
         });
 
@@ -314,14 +325,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         inputsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
             @Override
             public boolean onNavigateUp(int position) {
-                focusRail(RailsAdapter.RAIL_CHANNELS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_INPUTS, -1);
             }
 
             @Override
             public boolean onNavigateDown(int position) {
-                focusRail(RailsAdapter.RAIL_ALL_APPS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_INPUTS, 1);
             }
         });
 
@@ -330,8 +339,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         allAppsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
             @Override
             public boolean onNavigateUp(int position) {
-                focusRail(RailsAdapter.RAIL_INPUTS);
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_ALL_APPS, -1);
             }
 
             @Override
@@ -350,9 +358,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         List<RailsAdapter.RailConfig> configs = new ArrayList<>();
         configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_APPS, "Favorite Apps", R.drawable.ic_apps, 0xFFE11D48, favAppsAdapter));
-        configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_CHANNELS, "Live Channels", R.drawable.ic_livetv, 0xFF0EA5E9, channelsAdapter));
-        configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_INPUTS, "Inputs", R.drawable.ic_input, 0xFF10B981, inputsAdapter));
-        configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_ALL_APPS, "All Apps", R.drawable.ic_apps, 0xFF8B5CF6, allAppsAdapter));
+        if (showChannelsRail) {
+            configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_CHANNELS, "Live Channels", R.drawable.ic_livetv, 0xFF0EA5E9, channelsAdapter));
+        }
+        if (showInputsRail) {
+            configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_INPUTS, "Inputs", R.drawable.ic_input, 0xFF10B981, inputsAdapter));
+        }
+        if (showAllAppsRail) {
+            configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_ALL_APPS, "All Apps", R.drawable.ic_apps, 0xFF8B5CF6, allAppsAdapter));
+        }
         railsAdapter.setRails(configs);
 
         grid.setAdapter(railsAdapter);
@@ -707,8 +721,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void focusChannelItem(int pos) {
+        focusRailItem(RailsAdapter.RAIL_CHANNELS, pos);
+    }
+
+    /** Scrolls a rail to a card and focuses it; retries while the card is still being laid out. */
+    private void focusRailItem(int railType, int pos) {
         if (railsAdapter == null) return;
-        int railIdx = RailsAdapter.RAIL_CHANNELS;
+        int railIdx = railsAdapter.positionOfType(railType);
+        if (railIdx < 0) return;   // that row is hidden
         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(railIdx);
         if (vh instanceof RailsAdapter.RailViewHolder) {
             RecyclerView r = ((RailsAdapter.RailViewHolder) vh).recycler;
@@ -734,7 +754,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             r.postDelayed(focusTask, 50);
         } else {
             grid.smoothScrollToPosition(railIdx);
-            grid.postDelayed(() -> focusChannelItem(pos), 100);
+            grid.postDelayed(() -> focusRailItem(railType, pos), 100);
         }
     }
 
@@ -979,10 +999,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     public boolean onLongClick(RailCard card) {
                         AppsRowAdapter.AppItem ai = (AppsRowAdapter.AppItem) card.payload;
                         if (ai != null && !ai.pkg.isEmpty()) {
-                            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ai.pkg));
-                            try {
-                                startActivity(i);
-                            } catch (ActivityNotFoundException ignored) {}
+                            showAppActions(ai);
                             return true;
                         }
                         return false;
@@ -991,13 +1008,64 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         );
     }
 
+    /** Hold OK on an app: pin it to (or unpin it from) Favorite Apps, or open its system info page. */
+    private void showAppActions(AppsRowAdapter.AppItem ai) {
+        boolean pinned = pinnedApps.contains(ai.pkg);
+        String[] options = {
+                getString(pinned ? R.string.unpin_from_favorites : R.string.pin_to_favorites),
+                getString(R.string.app_info)};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(ai.label)
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        togglePin(ai);
+                    } else {
+                        Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ai.pkg));
+                        try {
+                            startActivity(i);
+                        } catch (ActivityNotFoundException ignored) {}
+                    }
+                })
+                .show();
+    }
+
+    private void togglePin(AppsRowAdapter.AppItem ai) {
+        List<String> list = new ArrayList<>(pinnedApps);
+        boolean nowPinned = !list.remove(ai.pkg);
+        if (nowPinned) list.add(ai.pkg);
+        pinnedApps = list;
+        Config.savePinned(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE), list);
+        reloadApps();
+        Toast.makeText(this, getString(nowPinned ? R.string.pinned_toast : R.string.unpinned_toast, ai.label),
+                Toast.LENGTH_SHORT).show();
+        // The card moved to the other row: follow it, so focus is not lost with the rebuilt rows.
+        final int railType = nowPinned ? RailsAdapter.RAIL_APPS : RailsAdapter.RAIL_ALL_APPS;
+        RailCardsAdapter target = nowPinned ? favAppsAdapter : allAppsAdapter;
+        int index = -1;
+        for (int i = 0; i < target.getItems().size(); i++) {
+            if (ai.pkg.equals(target.getItems().get(i).id)) {
+                index = i;
+                break;
+            }
+        }
+        final int focusIndex = index;
+        grid.post(() -> {
+            if (focusIndex >= 0 && isRailVisible(railType)) {
+                focusRailItem(railType, focusIndex);
+            } else {
+                focusRail(RailsAdapter.RAIL_APPS);
+                if (favAppsAdapter.getItemCount() == 0) moveRailFocus(RailsAdapter.RAIL_APPS, 1);
+            }
+        });
+    }
+
     private void reloadApps() {
         PackageManager pm = getPackageManager();
         Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         List<ResolveInfo> found = pm.queryIntentActivities(probe, 0);
         List<AppsRowAdapter.AppItem> favs = new ArrayList<>();
         List<AppsRowAdapter.AppItem> others = new ArrayList<>();
-        List<String> dock = cfg != null ? cfg.dockApps : Collections.emptyList();
+        List<String> dock = pinnedApps;
         for (ResolveInfo ri : found) {
             if (ri.activityInfo == null) continue;
             String pkg = ri.activityInfo.packageName;
@@ -1111,9 +1179,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
-    private void focusRail(int railIndex) {
+    private boolean isRailVisible(int railType) {
+        switch (railType) {
+            case RailsAdapter.RAIL_CHANNELS: return showChannelsRail;
+            case RailsAdapter.RAIL_INPUTS: return showInputsRail;
+            case RailsAdapter.RAIL_ALL_APPS: return showAllAppsRail;
+            default: return true;   // Favorite Apps is always there
+        }
+    }
+
+    /** D-pad up or down between rails, skipping hidden ones. Always consumes the key, so focus never jumps elsewhere. */
+    private boolean moveRailFocus(int fromType, int delta) {
+        for (int t = fromType + delta; t >= RailsAdapter.RAIL_APPS && t <= RailsAdapter.RAIL_ALL_APPS; t += delta) {
+            if (isRailVisible(t)) {
+                focusRail(t);
+                break;
+            }
+        }
+        return true;
+    }
+
+    /** Focuses the first card of a rail, given as a RailsAdapter.RAIL_* type (not a position: hidden rails shift those). */
+    private void focusRail(int railType) {
         if (railsAdapter == null) return;
-        int target = Math.max(0, Math.min(railIndex, railsAdapter.getItemCount() - 1));
+        int position = railsAdapter.positionOfType(railType);
+        int target = Math.max(0, Math.min(position < 0 ? 0 : position, railsAdapter.getItemCount() - 1));
         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(target);
         if (vh instanceof RailsAdapter.RailViewHolder) {
             ((RailsAdapter.RailViewHolder) vh).focusFirstItem();
@@ -1483,6 +1573,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         else res = R.string.good_night;
         greeting.setText(res);
         if (shamsi) shamsiDate.setText(Shamsi.today());
+        if (lunar) lunarDate.setText(LunarVN.today());
     }
 
     /** Shows the Wi-Fi network name on the button when we can read it, otherwise the connection type. */
