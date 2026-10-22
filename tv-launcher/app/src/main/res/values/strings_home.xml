@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lunar date, hideable rows and pinned apps. Kept apart from strings.xml; other languages fall back to English. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="home_screen_section">Home screen</string>
+    <string name="lunar_date_state">Vietnamese lunar date: %1$s</string>
+    <string name="rail_channels_state">Live Channels row: %1$s</string>
+    <string name="rail_inputs_state">Inputs row: %1$s</string>
+    <string name="rail_all_apps_state">All Apps row: %1$s</string>
+    <string name="rail_shown">Shown</string>
+    <string name="rail_hidden">Hidden</string>
+    <string name="rails_hint">Hold OK on an app to pin it to Favorite Apps. Hidden rows can be shown again here; pinning needs the All Apps row to be shown.</string>
+    <string name="reset_favorites">Reset Favorite Apps to default</string>
+    <string name="reset_favorites_done">Favorite Apps reset</string>
+    <string name="pin_to_favorites">Pin to Favorite Apps</string>
+    <string name="unpin_from_favorites">Unpin from Favorite Apps</string>
+    <string name="app_info">App info</string>
+    <string name="pinned_toast">Pinned %1$s</string>
+    <string name="unpinned_toast">Unpinned %1$s</string>
+</resources>
