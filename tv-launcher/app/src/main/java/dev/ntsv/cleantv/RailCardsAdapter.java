@@ -61,6 +61,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         RailCard card = items.get(position);
+        applyScale(holder, card.scale);
         holder.title.setText(card.title);
         holder.title.setVisibility(View.INVISIBLE);
         holder.title.setAlpha(0f);
@@ -150,6 +151,32 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     @Override
     public int getItemCount() {
         return items.size();
+    }
+
+    /** item_rail_card.xml is 180x101dp with the title 7dp under it; scale all of that together. */
+    private static void applyScale(ViewHolder h, float scale) {
+        float d = h.itemView.getResources().getDisplayMetrics().density;
+        int w = Math.round(180 * d * scale);
+        int hgt = Math.round(101 * d * scale);
+        setSize(h.card, w, hgt);
+        FrameLayout.LayoutParams tlp = (FrameLayout.LayoutParams) h.title.getLayoutParams();
+        int top = hgt + Math.round(7 * d);
+        if (tlp.width != w || tlp.topMargin != top) {
+            tlp.width = w;
+            tlp.topMargin = top;
+            h.title.setLayoutParams(tlp);
+        }
+        setSize(h.artworkCenter, Math.round(92 * d * scale), Math.round(54 * d * scale));
+        setSize(h.artworkIcon, Math.round(48 * d * scale), Math.round(48 * d * scale));
+    }
+
+    private static void setSize(View v, int w, int h) {
+        ViewGroup.LayoutParams lp = v.getLayoutParams();
+        if (lp.width != w || lp.height != h) {
+            lp.width = w;
+            lp.height = h;
+            v.setLayoutParams(lp);
+        }
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

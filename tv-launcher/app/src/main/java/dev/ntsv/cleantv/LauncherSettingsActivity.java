@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.TextView;
@@ -21,6 +22,9 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView railChannelsChoice;
     private TextView railInputsChoice;
     private TextView railAllAppsChoice;
+    private TextView favoritesBottomChoice;
+    private boolean favoritesBottom;
+    private static final int PICK_WALLPAPER = 41;
     private int columns;
     private boolean animations;
     private boolean advancedEffects;
@@ -42,6 +46,7 @@ public final class LauncherSettingsActivity extends Activity {
         showChannelsRail = config.showChannelsRail;
         showInputsRail = config.showInputsRail;
         showAllAppsRail = config.showAllAppsRail;
+        favoritesBottom = config.favoritesBottom;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -116,6 +121,24 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().putBoolean(Config.KEY_RAIL_ALL_APPS, showAllAppsRail).apply();
             setResult(RESULT_OK);
             refresh();
+        });
+        favoritesBottomChoice = findViewById(R.id.favoritesBottomChoice);
+        favoritesBottomChoice.setOnClickListener(v -> {
+            favoritesBottom = !favoritesBottom;
+            choices.edit().putBoolean(Config.KEY_FAVORITES_BOTTOM, favoritesBottom).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        findViewById(R.id.chooseWallpaperChoice).setOnClickListener(v -> pickWallpaper());
+        findViewById(R.id.removeWallpaperChoice).setOnClickListener(v -> {
+            java.io.File dir = Config.dir(this);
+            java.io.File file = dir != null ? new java.io.File(dir, Config.WALLPAPER_NAME) : null;
+            if (file != null && file.isFile() && file.delete()) {
+                Toast.makeText(this, R.string.wallpaper_removed, Toast.LENGTH_SHORT).show();
+                setResult(RESULT_OK);
+            } else {
+                Toast.makeText(this, R.string.wallpaper_none, Toast.LENGTH_SHORT).show();
+            }
         });
         findViewById(R.id.resetFavoritesChoice).setOnClickListener(v -> {
             choices.edit().remove(Config.KEY_PINNED_APPS).apply();
@@ -229,6 +252,48 @@ public final class LauncherSettingsActivity extends Activity {
         if (getIntent().getBooleanExtra("extra_start_pairing", false)) {
             startPairingWizard(stbPrefs, stbProviderChoice);
         }
+    }
+
+    /** Opens the system file picker for an image; TVs without one get the manual route. */
+    private void pickWallpaper() {
+        String[] actions = {Intent.ACTION_OPEN_DOCUMENT, Intent.ACTION_GET_CONTENT};
+        for (String action : actions) {
+            Intent intent = new Intent(action).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*");
+            try {
+                startActivityForResult(intent, PICK_WALLPAPER);
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+            }
+        }
+        java.io.File dir = Config.dir(this);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.choose_wallpaper)
+                .setMessage(getString(R.string.wallpaper_no_picker,
+                        (dir != null ? dir.getAbsolutePath() : "?") + "/" + Config.WALLPAPER_NAME))
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != PICK_WALLPAPER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        final Uri uri = data.getData();
+        java.io.File dir = Config.dir(this);
+        if (dir == null) {
+            Toast.makeText(this, R.string.wallpaper_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+        final java.io.File dest = new java.io.File(dir, Config.WALLPAPER_NAME);
+        Toast.makeText(this, R.string.wallpaper_working, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            boolean ok = WallpaperImporter.importImage(getApplicationContext(), uri, dest);
+            runOnUiThread(() -> {
+                Toast.makeText(this, ok ? R.string.wallpaper_set : R.string.wallpaper_failed,
+                        Toast.LENGTH_LONG).show();
+                if (ok) setResult(RESULT_OK);
+            });
+        }).start();
     }
 
     private void showProviderPicker(TextView view, SharedPreferences stbPrefs) {
@@ -479,6 +544,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(showInputsRail ? R.string.rail_shown : R.string.rail_hidden)));
         railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
                 getString(showAllAppsRail ? R.string.rail_shown : R.string.rail_hidden)));
+        favoritesBottomChoice.setText(getString(R.string.favorites_bottom_state,
+                getString(favoritesBottom ? R.string.on : R.string.off)));
     }
 
     private boolean hasOnTvChoices() {

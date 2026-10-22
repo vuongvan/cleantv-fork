@@ -117,6 +117,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean showChannelsRail = true;
     private boolean showInputsRail = true;
     private boolean showAllAppsRail = true;
+    private boolean favoritesBottom;
+    /** Rail types in the order they are shown, top to bottom. */
+    private final List<Integer> railOrder = new ArrayList<>();
+    private java.util.Map<String, Integer> favSizes = new HashMap<>();
 
     // STB & LCN Channels Engine
     private LcnDatabaseHelper dbHelper;
@@ -281,13 +285,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         showChannelsRail = cfg.showChannelsRail;
         showInputsRail = cfg.showInputsRail;
         showAllAppsRail = cfg.showAllAppsRail;
+        favoritesBottom = cfg.favoritesBottom;
+        favSizes = Config.loadSizes(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE));
         vpnApp = cfg.vpnApp;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
         this.cfg = cfg;
 
         grid = findViewById(R.id.grid);
-        grid.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
+        LinearLayoutManager gridManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        // Rows sit at the bottom of the screen when Favorite Apps is moved down: the space above shows the wallpaper.
+        gridManager.setStackFromEnd(favoritesBottom);
+        grid.setLayoutManager(gridManager);
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
 
@@ -296,8 +305,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         favAppsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
             @Override
             public boolean onNavigateUp(int position) {
-                if (btnWifi != null) btnWifi.requestFocus();
-                return true;
+                return moveRailFocus(RailsAdapter.RAIL_APPS, -1);
             }
 
             @Override
@@ -357,7 +365,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
 
         List<RailsAdapter.RailConfig> configs = new ArrayList<>();
-        configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_APPS, "Favorite Apps", R.drawable.ic_apps, 0xFFE11D48, favAppsAdapter));
+        RailsAdapter.RailConfig favoritesRail = new RailsAdapter.RailConfig(RailsAdapter.RAIL_APPS, "Favorite Apps", R.drawable.ic_apps, 0xFFE11D48, favAppsAdapter);
+        if (!favoritesBottom) configs.add(favoritesRail);
         if (showChannelsRail) {
             configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_CHANNELS, "Live Channels", R.drawable.ic_livetv, 0xFF0EA5E9, channelsAdapter));
         }
@@ -367,6 +376,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (showAllAppsRail) {
             configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_ALL_APPS, "All Apps", R.drawable.ic_apps, 0xFF8B5CF6, allAppsAdapter));
         }
+        if (favoritesBottom) configs.add(favoritesRail);
+        railOrder.clear();
+        for (RailsAdapter.RailConfig rc : configs) railOrder.add(rc.type);
         railsAdapter.setRails(configs);
 
         grid.setAdapter(railsAdapter);
@@ -428,7 +440,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                focusRail(RailsAdapter.RAIL_APPS);
+                focusRail(railOrder.isEmpty() ? RailsAdapter.RAIL_APPS : railOrder.get(0));
                 return true;
             }
             int firstButton = (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
@@ -1008,25 +1020,87 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         );
     }
 
-    /** Hold OK on an app: pin it to (or unpin it from) Favorite Apps, or open its system info page. */
+    /** Hold OK on an app: open, pin or unpin, and for a favorite also move it and change its size; or app info. */
     private void showAppActions(AppsRowAdapter.AppItem ai) {
-        boolean pinned = pinnedApps.contains(ai.pkg);
-        String[] options = {
-                getString(pinned ? R.string.unpin_from_favorites : R.string.pin_to_favorites),
-                getString(R.string.app_info)};
+        final boolean pinned = pinnedApps.contains(ai.pkg);
+        final int favIndex = indexOfCard(favAppsAdapter, ai.pkg);
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        labels.add(getString(R.string.open_app));
+        actions.add(() -> onAppSelected(ai));
+        labels.add(getString(pinned ? R.string.unpin_from_favorites : R.string.pin_to_favorites));
+        actions.add(() -> togglePin(ai));
+        if (favIndex >= 0) {
+            if (favIndex > 0) {
+                labels.add(getString(R.string.move_left));
+                actions.add(() -> moveFavorite(ai, -1));
+            }
+            if (favIndex < favAppsAdapter.getItemCount() - 1) {
+                labels.add(getString(R.string.move_right));
+                actions.add(() -> moveFavorite(ai, 1));
+            }
+            labels.add(getString(R.string.card_size_label, sizeName(sizeIndexOf(ai.pkg))));
+            actions.add(() -> showSizePicker(ai));
+        }
+        labels.add(getString(R.string.app_info));
+        actions.add(() -> {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ai.pkg));
+            try {
+                startActivity(i);
+            } catch (ActivityNotFoundException ignored) {}
+        });
         new android.app.AlertDialog.Builder(this)
                 .setTitle(ai.label)
-                .setItems(options, (dialog, which) -> {
-                    if (which == 0) {
-                        togglePin(ai);
-                    } else {
-                        Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ai.pkg));
-                        try {
-                            startActivity(i);
-                        } catch (ActivityNotFoundException ignored) {}
-                    }
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> actions.get(which).run())
+                .show();
+    }
+
+    private static int indexOfCard(RailCardsAdapter adapter, String id) {
+        List<RailCard> items = adapter.getItems();
+        for (int i = 0; i < items.size(); i++) {
+            if (id.equals(items.get(i).id)) return i;
+        }
+        return -1;
+    }
+
+    private int sizeIndexOf(String pkg) {
+        Integer size = favSizes.get(pkg);
+        return size == null ? Config.SIZE_NORMAL : size;
+    }
+
+    private String sizeName(int size) {
+        return getString(size == 0 ? R.string.size_small : size == 2 ? R.string.size_large : R.string.size_medium);
+    }
+
+    private void showSizePicker(AppsRowAdapter.AppItem ai) {
+        String[] names = {sizeName(0), sizeName(1), sizeName(2)};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.card_size)
+                .setSingleChoiceItems(names, sizeIndexOf(ai.pkg), (dialog, which) -> {
+                    favSizes.put(ai.pkg, which);
+                    Config.saveSizes(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE), favSizes);
+                    dialog.dismiss();
+                    reloadApps();
+                    final int index = indexOfCard(favAppsAdapter, ai.pkg);
+                    grid.post(() -> focusRailItem(RailsAdapter.RAIL_APPS, Math.max(0, index)));
                 })
                 .show();
+    }
+
+    /** Swaps a favorite with its neighbour in the row and keeps focus on it. */
+    private void moveFavorite(AppsRowAdapter.AppItem ai, int delta) {
+        int index = indexOfCard(favAppsAdapter, ai.pkg);
+        int other = index + delta;
+        if (index < 0 || other < 0 || other >= favAppsAdapter.getItemCount()) return;
+        List<String> list = new ArrayList<>(pinnedApps);
+        int a = list.indexOf(ai.pkg);
+        int b = list.indexOf(favAppsAdapter.getItems().get(other).id);
+        if (a < 0 || b < 0) return;
+        Collections.swap(list, a, b);
+        pinnedApps = list;
+        Config.savePinned(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE), list);
+        reloadApps();
+        grid.post(() -> focusRailItem(RailsAdapter.RAIL_APPS, other));
     }
 
     private void togglePin(AppsRowAdapter.AppItem ai) {
@@ -1090,7 +1164,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         List<RailCard> favCards = new ArrayList<>();
         for (AppsRowAdapter.AppItem it : favs) {
-            favCards.add(createAppCard(it));
+            RailCard fc = createAppCard(it);
+            fc.scale = Config.SIZE_SCALES[sizeIndexOf(it.pkg)];
+            favCards.add(fc);
         }
         List<RailCard> otherCards = new ArrayList<>();
         for (AppsRowAdapter.AppItem it : others) {
@@ -1190,11 +1266,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** D-pad up or down between rails, skipping hidden ones. Always consumes the key, so focus never jumps elsewhere. */
     private boolean moveRailFocus(int fromType, int delta) {
-        for (int t = fromType + delta; t >= RailsAdapter.RAIL_APPS && t <= RailsAdapter.RAIL_ALL_APPS; t += delta) {
-            if (isRailVisible(t)) {
-                focusRail(t);
-                break;
-            }
+        int idx = railOrder.indexOf(fromType) + delta;
+        if (idx < 0) {
+            if (btnWifi != null) btnWifi.requestFocus();   // above the top row: the top bar
+        } else if (idx < railOrder.size()) {
+            focusRail(railOrder.get(idx));
         }
         return true;
     }
@@ -1573,7 +1649,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         else res = R.string.good_night;
         greeting.setText(res);
         if (shamsi) shamsiDate.setText(Shamsi.today());
-        if (lunar) lunarDate.setText(LunarVN.today());
+        if (lunar) lunarDate.setText(LunarVN.today().toUpperCase(new Locale("vi")));
     }
 
     /** Shows the Wi-Fi network name on the button when we can read it, otherwise the connection type. */

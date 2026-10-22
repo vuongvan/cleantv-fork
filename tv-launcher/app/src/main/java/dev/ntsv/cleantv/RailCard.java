@@ -29,6 +29,8 @@ public class RailCard {
     public final int accentColor;
     public final Object payload;
     public final ActionListener actionListener;
+    /** Card size factor (1 = normal). Set by the owner for Favorite Apps; read when the card is bound. */
+    public float scale = 1f;
 
     public RailCard(String id,
                     String title,
