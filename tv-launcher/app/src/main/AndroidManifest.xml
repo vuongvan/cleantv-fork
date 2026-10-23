@@ -6,7 +6,6 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -62,13 +61,6 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <!-- Persistent USB Device Attached Filter for IR Blaster -->
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-            <meta-data
-                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
         </activity>
 
         <activity
@@ -77,14 +69,6 @@
             android:excludeFromRecents="true"
             android:screenOrientation="landscape" />
         <activity
-            android:name=".StbSetupActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:excludeFromRecents="true"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.TvHome.Translucent"
-            android:windowSoftInputMode="stateHidden|adjustPan" />
-        <activity
             android:name=".TvPlayerActivity"
             android:exported="true"
             android:launchMode="singleTop"
@@ -92,33 +76,11 @@
             android:screenOrientation="landscape"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
         <activity
-            android:name=".RemoteSidebarActivity"
-            android:exported="true"
-            android:theme="@style/Theme.TvHome.Translucent"
-            android:launchMode="singleTop"
-            android:excludeFromRecents="true"
-            android:screenOrientation="landscape" />
-        <activity
             android:name=".HomeSettingsActivity"
             android:exported="false"
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.NoDisplay" />
-        <!-- Home button for remotes that send KEYCODE_ALL_APPS (Xiaomi). Opt-in: HOME_KEY_SERVICE=1
-             build-and-install.sh; see HomeKeyService. -->
-        <service
-            android:name=".HomeKeyService"
-            android:label="@string/home_key_name"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/home_key_service" />
-        </service>
-
         <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
              com.gathin.tvhome/.ClockDream` over adb. -->
         <service
