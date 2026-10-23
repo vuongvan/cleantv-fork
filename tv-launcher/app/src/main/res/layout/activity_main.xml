@@ -141,8 +141,8 @@
                             android:layout_marginTop="2dp"
                             android:singleLine="true"
                             android:ellipsize="end"
-                            android:textColor="#8CFFFFFF"
-                            android:textSize="13sp"
+                            android:textColor="#A6FFFFFF"
+                            android:textSize="14sp"
                             android:fontFamily="sans-serif"
                             android:includeFontPadding="false"
                             android:visibility="gone" />
@@ -172,14 +172,22 @@
                     android:maxWidth="180dp"
                     android:singleLine="true"
                     android:ellipsize="end"
-                    android:text="@string/wifi"
+                    android:text=""
+                    android:contentDescription="@string/wifi"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:drawablePadding="0dp"
                     android:drawableStart="@drawable/ic_wifi"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
                     android:id="@+id/btnSettings"
                     style="@style/TopButton"
-                    android:text="@string/settings"
+                    android:text=""
+                    android:contentDescription="@string/settings"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:drawablePadding="0dp"
                     android:drawableStart="@drawable/ic_settings"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>

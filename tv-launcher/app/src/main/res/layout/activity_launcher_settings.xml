@@ -88,11 +88,6 @@
             android:layout_marginTop="10dp" />
 
         <TextView
-            android:id="@+id/railInputsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp" />
-
-        <TextView
             android:id="@+id/railAllAppsChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
@@ -120,6 +115,40 @@
 
         <SeekBar
             android:id="@+id/favoriteSizeBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/favoriteOffsetLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/favoriteOffsetBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/cornerRadiusLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/cornerRadiusBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
