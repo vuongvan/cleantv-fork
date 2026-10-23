@@ -3,7 +3,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_screen_section">Home screen</string>
     <string name="lunar_date_state">Vietnamese lunar date: %1$s</string>
-    <string name="rail_inputs_state">Inputs row: %1$s</string>
     <string name="rail_all_apps_state">All Apps row: %1$s</string>
     <string name="rail_shown">Shown</string>
     <string name="rail_hidden">Hidden</string>
@@ -28,4 +27,6 @@
     <string name="move_left">Move left</string>
     <string name="move_right">Move right</string>
     <string name="favorite_size_label">Favorite card size: %1$d (10 = normal)</string>
+    <string name="favorite_offset_label">Favorite row lower by: %1$d dp (bottom row only)</string>
+    <string name="corner_radius_label">Card corner radius: %1$d dp (0 = square)</string>
 </resources>
