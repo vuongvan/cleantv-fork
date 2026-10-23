@@ -88,11 +88,6 @@
             android:layout_marginTop="10dp" />
 
         <TextView
-            android:id="@+id/railChannelsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp" />
-
-        <TextView
             android:id="@+id/railInputsChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
@@ -114,6 +109,23 @@
             android:id="@+id/favoritesBottomChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="18dp" />
+
+        <TextView
+            android:id="@+id/favoriteSizeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/favoriteSizeBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:focusable="true" />
 
         <TextView
             android:id="@+id/chooseWallpaperChoice"
@@ -152,86 +164,6 @@
             style="@style/SettingsRow"
             android:layout_marginTop="18dp"
             android:text="@string/tv_settings" />
-
-        <!-- STB & Universal LCN Settings -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="Set-Top Box &amp; AV1 Live Channels"
-            android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
-
-        <TextView
-            android:id="@+id/stbProviderChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp" />
-
-        <TextView
-            android:id="@+id/pairRemoteChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Pair STB Remote (Interactive Wizard)" />
-
-        <TextView
-            android:id="@+id/testIrChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Quick Test (Send POWER)" />
-
-        <TextView
-            android:id="@+id/avInputChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Input Source: AV1 (HW3)" />
-
-        <TextView
-            android:id="@+id/resetChannelsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Reset Custom Channel Numbers &amp; Favourites" />
-
-        <!-- Mobile Companion App & Security -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="Mobile Companion App (Secure Pairing)"
-            android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
-
-        <TextView
-            android:id="@+id/companionPairingChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Pair Mobile Companion App" />
-
-        <TextView
-            android:id="@+id/forgetCompanionDevicesChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Forget Paired Mobile Devices" />
-
-        <!-- Settings Backup & Restore -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="Backup &amp; Restore"
-            android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
-
-        <TextView
-            android:id="@+id/backupSettingsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Export Settings to File (/sdcard/Download)" />
-
-        <TextView
-            android:id="@+id/restoreSettingsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp"
-            android:text="Import Settings from File (/sdcard/Download)" />
 
         <!-- Updates -->
         <TextView

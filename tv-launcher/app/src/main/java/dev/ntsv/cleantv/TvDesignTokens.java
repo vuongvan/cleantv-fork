@@ -10,7 +10,7 @@ import android.widget.TextView;
 public final class TvDesignTokens {
 
     public static final float FOCUS_SCALE = 1.08f;
-    public static final float FOCUS_ELEVATION_DP = 8f;
+    public static final float FOCUS_ELEVATION_DP = 18f;
     public static final int FOCUS_DURATION_MS = 160;
     public static final int BLUR_DURATION_MS = 120;
     public static final int TEXT_FADE_DURATION_MS = 160;

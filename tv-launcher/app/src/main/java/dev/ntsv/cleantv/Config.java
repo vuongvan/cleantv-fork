@@ -34,15 +34,14 @@ final class Config {
     static final String SETTINGS_NAME = "launcher_settings";
     /** On-TV choices (SharedPreferences SETTINGS_NAME) added for the lunar date, hideable rows and pinned apps. */
     static final String KEY_LUNAR_DATE = "lunar_date";
-    static final String KEY_RAIL_CHANNELS = "rail_channels";
     static final String KEY_RAIL_INPUTS = "rail_inputs";
     static final String KEY_RAIL_ALL_APPS = "rail_all_apps";
     static final String KEY_PINNED_APPS = "pinned_apps";
     static final String KEY_FAVORITES_BOTTOM = "favorites_bottom";
-    static final String KEY_FAVORITE_SIZES = "favorite_sizes";
-    /** Favorite card sizes: small, normal, large. */
-    static final float[] SIZE_SCALES = {0.8f, 1f, 1.3f};
-    static final int SIZE_NORMAL = 1;
+    static final String KEY_FAVORITE_SIZE = "favorite_size";
+    static final int MIN_FAVORITE_SIZE = 5;
+    static final int DEFAULT_FAVORITE_SIZE = 10;
+    static final int MAX_FAVORITE_SIZE = 20;
     private static final String THEME_REVISION_NAME = "theme_revision";
     private static final String THEME_SIGNATURE_KEY = "theme_signature";
 
@@ -61,11 +60,12 @@ final class Config {
     /** Vietnamese lunar date under the Gregorian one (on-TV choice "lunar_date", default on). */
     final boolean lunarDate;
     /** Rows that can be hidden from the home screen (on-TV choices); Favorite Apps is always shown. */
-    final boolean showChannelsRail;
     final boolean showInputsRail;
     final boolean showAllAppsRail;
     /** Favorite Apps as the bottom row, with the other rows and the wallpaper above it. */
     final boolean favoritesBottom;
+    /** Size of every Favorite Apps card in tenths: 10 is normal, 5 half, 20 double. */
+    final int favoriteSize;
     final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
@@ -83,8 +83,8 @@ final class Config {
     private Config(List<String> dockApps, List<String> hiddenApps, String liveTvPackage, String liveTvAction,
                    String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
-                   boolean shamsiDate, boolean lunarDate, boolean showChannelsRail,
-                   boolean showInputsRail, boolean showAllAppsRail, boolean favoritesBottom,
+                   boolean shamsiDate, boolean lunarDate,
+                   boolean showInputsRail, boolean showAllAppsRail, boolean favoritesBottom, int favoriteSize,
                    boolean moduleCards, boolean reducedMotion, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, boolean overlayApplied) {
@@ -101,10 +101,10 @@ final class Config {
         this.advancedEffects = advancedEffects;
         this.shamsiDate = shamsiDate;
         this.lunarDate = lunarDate;
-        this.showChannelsRail = showChannelsRail;
         this.showInputsRail = showInputsRail;
         this.showAllAppsRail = showAllAppsRail;
         this.favoritesBottom = favoritesBottom;
+        this.favoriteSize = favoriteSize;
         this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
         this.vpnApp = vpnApp;
@@ -179,10 +179,11 @@ final class Config {
         List<String> pinned = loadPinned(choices);
         if (pinned != null) dock = pinned;
         boolean lunar = choices.getBoolean(KEY_LUNAR_DATE, true);
-        boolean showChannels = choices.getBoolean(KEY_RAIL_CHANNELS, true);
         boolean showInputs = choices.getBoolean(KEY_RAIL_INPUTS, true);
         boolean showAllApps = choices.getBoolean(KEY_RAIL_ALL_APPS, true);
         boolean favoritesBottom = choices.getBoolean(KEY_FAVORITES_BOTTOM, false);
+        int favoriteSize = Math.max(MIN_FAVORITE_SIZE, Math.min(MAX_FAVORITE_SIZE,
+                choices.getInt(KEY_FAVORITE_SIZE, DEFAULT_FAVORITE_SIZE)));
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
         if (wallpaper != null && !(wallpaper.isFile() && wallpaper.length() > 0)) wallpaper = null;
         // A theme can also switch the wallpaper off while the file is still there.
@@ -190,7 +191,7 @@ final class Config {
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, lunar, showChannels, showInputs, showAllApps, favoritesBottom,
+                shamsi, lunar, showInputs, showAllApps, favoritesBottom, favoriteSize,
                 moduleCards, reducedMotion, vpn, homeSettings, background,
                 Math.max(0, Math.min(100, skyIntensity)), wallpaper, applied);
     }
@@ -204,32 +205,6 @@ final class Config {
             if (!pkg.trim().isEmpty()) out.add(pkg.trim());
         }
         return out;
-    }
-
-    /** Size index per package ({@link #SIZE_SCALES}); packages not in the map are normal size. */
-    static java.util.Map<String, Integer> loadSizes(SharedPreferences choices) {
-        java.util.Map<String, Integer> out = new java.util.HashMap<>();
-        String raw = choices.getString(KEY_FAVORITE_SIZES, "");
-        for (String line : raw.split("\\n")) {
-            int eq = line.lastIndexOf('=');
-            if (eq <= 0) continue;
-            try {
-                int size = Integer.parseInt(line.substring(eq + 1).trim());
-                if (size >= 0 && size < SIZE_SCALES.length) out.put(line.substring(0, eq).trim(), size);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return out;
-    }
-
-    static void saveSizes(SharedPreferences choices, java.util.Map<String, Integer> sizes) {
-        StringBuilder sb = new StringBuilder();
-        for (java.util.Map.Entry<String, Integer> e : sizes.entrySet()) {
-            if (e.getValue() == SIZE_NORMAL) continue;
-            if (sb.length() > 0) sb.append('\n');
-            sb.append(e.getKey()).append('=').append(e.getValue());
-        }
-        choices.edit().putString(KEY_FAVORITE_SIZES, sb.toString()).apply();
     }
 
     /** An empty list is saved as empty (nothing pinned), which is different from never having chosen. */

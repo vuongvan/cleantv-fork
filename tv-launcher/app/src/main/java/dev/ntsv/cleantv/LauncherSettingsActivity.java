@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -19,7 +20,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView lunarChoice;
-    private TextView railChannelsChoice;
+    private TextView favoriteSizeLabel;
+    private int favoriteSize;
     private TextView railInputsChoice;
     private TextView railAllAppsChoice;
     private TextView favoritesBottomChoice;
@@ -29,7 +31,6 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean animations;
     private boolean advancedEffects;
     private boolean lunarDate;
-    private boolean showChannelsRail;
     private boolean showInputsRail;
     private boolean showAllAppsRail;
 
@@ -43,7 +44,7 @@ public final class LauncherSettingsActivity extends Activity {
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
         lunarDate = config.lunarDate;
-        showChannelsRail = config.showChannelsRail;
+        favoriteSize = config.favoriteSize;
         showInputsRail = config.showInputsRail;
         showAllAppsRail = config.showAllAppsRail;
         favoritesBottom = config.favoritesBottom;
@@ -101,13 +102,6 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             refresh();
         });
-        railChannelsChoice = findViewById(R.id.railChannelsChoice);
-        railChannelsChoice.setOnClickListener(v -> {
-            showChannelsRail = !showChannelsRail;
-            choices.edit().putBoolean(Config.KEY_RAIL_CHANNELS, showChannelsRail).apply();
-            setResult(RESULT_OK);
-            refresh();
-        });
         railInputsChoice = findViewById(R.id.railInputsChoice);
         railInputsChoice.setOnClickListener(v -> {
             showInputsRail = !showInputsRail;
@@ -128,6 +122,29 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().putBoolean(Config.KEY_FAVORITES_BOTTOM, favoritesBottom).apply();
             setResult(RESULT_OK);
             refresh();
+        });
+        favoriteSizeLabel = findViewById(R.id.favoriteSizeLabel);
+        SeekBar favoriteSizeBar = findViewById(R.id.favoriteSizeBar);
+        favoriteSizeBar.setMax(Config.MAX_FAVORITE_SIZE - Config.MIN_FAVORITE_SIZE);
+        favoriteSizeBar.setKeyProgressIncrement(1);
+        favoriteSizeBar.setProgress(favoriteSize - Config.MIN_FAVORITE_SIZE);
+        favoriteSizeLabel.setText(getString(R.string.favorite_size_label, favoriteSize));
+        favoriteSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                favoriteSize = progress + Config.MIN_FAVORITE_SIZE;
+                favoriteSizeLabel.setText(getString(R.string.favorite_size_label, favoriteSize));
+                choices.edit().putInt(Config.KEY_FAVORITE_SIZE, favoriteSize).apply();
+                setResult(RESULT_OK);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar bar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar bar) {
+            }
         });
         findViewById(R.id.chooseWallpaperChoice).setOnClickListener(v -> pickWallpaper());
         findViewById(R.id.removeWallpaperChoice).setOnClickListener(v -> {
@@ -152,95 +169,6 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(new Intent(Settings.ACTION_SETTINGS)));
 
-        // STB & Live Channels Settings
-        SharedPreferences stbPrefs = getSharedPreferences("stb_settings", MODE_PRIVATE);
-        TextView stbProviderChoice = findViewById(R.id.stbProviderChoice);
-        TextView pairRemoteChoice = findViewById(R.id.pairRemoteChoice);
-        TextView testIrChoice = findViewById(R.id.testIrChoice);
-        TextView avInputChoice = findViewById(R.id.avInputChoice);
-        TextView resetChannelsChoice = findViewById(R.id.resetChannelsChoice);
-        TextView companionPairingChoice = findViewById(R.id.companionPairingChoice);
-        TextView forgetCompanionDevicesChoice = findViewById(R.id.forgetCompanionDevicesChoice);
-        TextView backupSettingsChoice = findViewById(R.id.backupSettingsChoice);
-        TextView restoreSettingsChoice = findViewById(R.id.restoreSettingsChoice);
-
-        updateStbProviderText(stbProviderChoice, stbPrefs);
-        stbProviderChoice.setOnClickListener(v -> startActivity(new Intent(this, StbSetupActivity.class)));
-
-        pairRemoteChoice.setOnClickListener(v -> {
-            Intent intent = new Intent(this, StbSetupActivity.class);
-            intent.putExtra(StbSetupActivity.EXTRA_START_PAIRING, true);
-            startActivity(intent);
-        });
-
-        testIrChoice.setOnClickListener(v -> {
-            int rId = stbPrefs.getInt("remote_id", 43);
-            int bitLen = stbPrefs.getInt("bit_length", 32);
-            LcnDatabaseHelper db = LcnDatabaseHelper.getInstance(this);
-            SensyIrManager ir = SensyIrManager.getInstance(this);
-            new Thread(() -> {
-                java.util.Map<String, String> keys = db.getKeyCodes(rId);
-                String powerHex = keys.get("POWER");
-                if (powerHex != null && !powerHex.isEmpty()) {
-                    ir.transmitNecAsync(powerHex, bitLen, () ->
-                            Toast.makeText(this, "Transmitted POWER [" + powerHex + "]", Toast.LENGTH_SHORT).show()
-                    );
-                } else {
-                    runOnUiThread(() -> Toast.makeText(this, "No power code found", Toast.LENGTH_SHORT).show());
-                }
-            }).start();
-        });
-
-        updateAvInputText(avInputChoice, stbPrefs);
-        avInputChoice.setOnClickListener(v -> showAvInputPicker(avInputChoice, stbPrefs));
-
-        resetChannelsChoice.setOnClickListener(v -> showResetChannelsDialog());
-
-        companionPairingChoice.setOnClickListener(v -> showCompanionPairingDialog());
-
-        updateForgetDevicesText(forgetCompanionDevicesChoice);
-        forgetCompanionDevicesChoice.setOnClickListener(v -> showForgetDevicesDialog(forgetCompanionDevicesChoice));
-
-        backupSettingsChoice.setOnClickListener(v -> {
-            java.io.File file = SettingsBackupHelper.exportToFile(this);
-            if (file != null) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Backup Exported")
-                        .setMessage("Settings exported successfully to:\n" + file.getAbsolutePath() + "\n\nYou can also export/import directly through the Mobile Companion App.")
-                        .setPositiveButton("OK", null)
-                        .show();
-            } else {
-                Toast.makeText(this, "Failed to write backup file", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        restoreSettingsChoice.setOnClickListener(v -> {
-            java.io.File file = SettingsBackupHelper.getBackupFile(this);
-            if (!file.exists()) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Backup File Not Found")
-                        .setMessage("No backup file found at:\n" + file.getAbsolutePath() + "\n\nPlease place '" + SettingsBackupHelper.BACKUP_FILENAME + "' in Download folder or push settings from the Mobile Companion App.")
-                        .setPositiveButton("OK", null)
-                        .show();
-                return;
-            }
-            new AlertDialog.Builder(this)
-                    .setTitle("Restore Settings")
-                    .setMessage("Restore STB configuration, custom channel numbers, and favourites from:\n" + file.getAbsolutePath() + "?")
-                    .setPositiveButton("Restore", (d, which) -> {
-                        boolean ok = SettingsBackupHelper.importFromFile(this);
-                        if (ok) {
-                            Toast.makeText(this, "Settings restored successfully!", Toast.LENGTH_LONG).show();
-                            updateStbProviderText(stbProviderChoice, stbPrefs);
-                            updateAvInputText(avInputChoice, stbPrefs);
-                        } else {
-                            Toast.makeText(this, "Failed to parse or restore settings", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-        });
-
         TextView checkUpdatesChoice = findViewById(R.id.checkUpdatesChoice);
         if (checkUpdatesChoice != null) {
             checkUpdatesChoice.setOnClickListener(v -> UpdateManager.checkForUpdates(this, true));
@@ -249,9 +177,6 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
         columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
 
-        if (getIntent().getBooleanExtra("extra_start_pairing", false)) {
-            startPairingWizard(stbPrefs, stbProviderChoice);
-        }
     }
 
     /** Opens the system file picker for an image; TVs without one get the manual route. */
@@ -296,228 +221,6 @@ public final class LauncherSettingsActivity extends Activity {
         }).start();
     }
 
-    private void showProviderPicker(TextView view, SharedPreferences stbPrefs) {
-        LcnDatabaseHelper db = LcnDatabaseHelper.getInstance(this);
-        new Thread(() -> {
-            java.util.List<LcnDatabaseHelper.Provider> list = db.searchProviders("", 40);
-            runOnUiThread(() -> {
-                String[] titles = new String[list.size()];
-                for (int i = 0; i < list.size(); i++) {
-                    titles[i] = list.get(i).title + " (" + list.get(i).type + ")";
-                }
-                new AlertDialog.Builder(this)
-                        .setTitle("Select STB Provider")
-                        .setItems(titles, (d, which) -> {
-                            LcnDatabaseHelper.Provider p = list.get(which);
-                            new Thread(() -> {
-                                java.util.List<LcnDatabaseHelper.RemoteModel> remotes = db.getRemotesForProvider(p.id);
-                                int rId = remotes.isEmpty() ? p.id : remotes.get(0).id;
-                                int bitLen = remotes.isEmpty() ? 32 : remotes.get(0).bitLength;
-                                stbPrefs.edit()
-                                        .putInt("provider_id", p.id)
-                                        .putString("provider_title", p.title)
-                                        .putInt("remote_id", rId)
-                                        .putInt("bit_length", bitLen)
-                                        .apply();
-                                runOnUiThread(() -> {
-                                    updateStbProviderText(view, stbPrefs);
-                                    setResult(RESULT_OK);
-                                });
-                            }).start();
-                        })
-                        .show();
-            });
-        }).start();
-    }
-
-    private void startPairingWizard(SharedPreferences stbPrefs, TextView providerView) {
-        int providerId = stbPrefs.getInt("provider_id", -1);
-        if (providerId <= 0) {
-            startActivity(new Intent(this, StbSetupActivity.class));
-            return;
-        }
-        LcnDatabaseHelper db = LcnDatabaseHelper.getInstance(this);
-        new Thread(() -> {
-            java.util.List<LcnDatabaseHelper.RemoteModel> remotes = db.getRemotesForProvider(providerId);
-            if (remotes.isEmpty()) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "No remote profiles found. Please select provider first.", Toast.LENGTH_SHORT).show();
-                    startActivity(new Intent(this, StbSetupActivity.class));
-                });
-                return;
-            }
-            runOnUiThread(() -> showWizardStep(remotes, 0, stbPrefs, providerView));
-        }).start();
-    }
-
-    private void showWizardStep(java.util.List<LcnDatabaseHelper.RemoteModel> remotes, int index,
-                                SharedPreferences stbPrefs, TextView providerView) {
-        if (index < 0 || index >= remotes.size()) return;
-        LcnDatabaseHelper.RemoteModel current = remotes.get(index);
-        int total = remotes.size();
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Pair STB Remote (" + (index + 1) + " of " + total + ")")
-                .setMessage("Candidate Model: Remote #" + current.id + " (Bits: " + current.bitLength + ")\n\n"
-                        + "1. Click 'TEST POWER' below.\n"
-                        + "2. Check if your Set-Top Box powers ON/OFF.\n"
-                        + "3. If it worked, select 'PAIR THIS REMOTE'. Otherwise select 'NEXT MODEL'.")
-                .setPositiveButton("PAIR THIS REMOTE", (d, w) -> {
-                    stbPrefs.edit()
-                            .putInt("remote_id", current.id)
-                            .putInt("bit_length", current.bitLength)
-                            .apply();
-                    updateStbProviderText(providerView, stbPrefs);
-                    setResult(RESULT_OK);
-                    Toast.makeText(this, "Successfully paired with Remote #" + current.id + "!", Toast.LENGTH_LONG).show();
-                })
-                .setNegativeButton(index < total - 1 ? "NEXT MODEL" : "RESTART", (d, w) -> {
-                    int next = (index + 1) % total;
-                    showWizardStep(remotes, next, stbPrefs, providerView);
-                })
-                .setNeutralButton("TEST POWER", null)
-                .create();
-
-        dialog.setOnShowListener(dInterface -> {
-            // Keep dialog open when clicking TEST POWER
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                LcnDatabaseHelper db = LcnDatabaseHelper.getInstance(this);
-                SensyIrManager ir = SensyIrManager.getInstance(this);
-                new Thread(() -> {
-                    java.util.Map<String, String> keys = db.getKeyCodes(current.id);
-                    String powerHex = keys.get("POWER");
-                    if (powerHex != null && !powerHex.isEmpty()) {
-                        ir.transmitNecAsync(powerHex, current.bitLength, () ->
-                                Toast.makeText(this, "Blasted POWER for Remote #" + current.id, Toast.LENGTH_SHORT).show()
-                        );
-                    } else {
-                        runOnUiThread(() -> Toast.makeText(this, "No POWER key for Remote #" + current.id, Toast.LENGTH_SHORT).show());
-                    }
-                }).start();
-            });
-        });
-
-        dialog.show();
-    }
-
-    private void updateStbProviderText(TextView view, SharedPreferences stbPrefs) {
-        String title = stbPrefs.getString("provider_title", "Kerala Vision Digital");
-        int rId = stbPrefs.getInt("remote_id", 43);
-        view.setText("Provider: " + title + " (Remote #" + rId + ")");
-    }
-
-    private void updateAvInputText(TextView view, SharedPreferences stbPrefs) {
-        String inputId = stbPrefs.getString("av_input_id", "com.xiaomi.mitv.tvinput/.TvInputService/HW3");
-        String friendly = "AV1 (HW3)";
-        if (inputId.contains("HW1")) friendly = "HDMI 1 (HW1)";
-        else if (inputId.contains("HW2")) friendly = "HDMI 2 (HW2)";
-        else if (inputId.contains("HW4")) friendly = "HDMI 3 (HW4)";
-        view.setText("Input Source: " + friendly);
-    }
-
-    private void showAvInputPicker(TextView view, SharedPreferences stbPrefs) {
-        final String[] names = {"AV1 Composite (HW3 - Default)", "HDMI 1 (HW1)", "HDMI 2 (HW2)", "HDMI 3 (HW4)"};
-        final String[] ids = {
-                "com.xiaomi.mitv.tvinput/.TvInputService/HW3",
-                "com.xiaomi.mitv.tvinput/.TvInputService/HW1",
-                "com.xiaomi.mitv.tvinput/.TvInputService/HW2",
-                "com.xiaomi.mitv.tvinput/.TvInputService/HW4"
-        };
-        new AlertDialog.Builder(this)
-                .setTitle("Select Live TV Input Source")
-                .setItems(names, (d, which) -> {
-                    stbPrefs.edit().putString("av_input_id", ids[which]).apply();
-                    updateAvInputText(view, stbPrefs);
-                    Toast.makeText(this, "Set TV input to " + names[which], Toast.LENGTH_SHORT).show();
-                })
-                .show();
-    }
-
-    private void showResetChannelsDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Reset Channel Customizations")
-                .setMessage("Reset all custom channel numbers, usage sorting, and favourites back to default?")
-                .setPositiveButton("Reset", (d, w) -> {
-                    getSharedPreferences("user_channel_overrides", MODE_PRIVATE).edit().clear().apply();
-                    SharedPreferences stbPrefs = getSharedPreferences("stb_settings", MODE_PRIVATE);
-                    SharedPreferences.Editor ed = stbPrefs.edit();
-                    for (String k : stbPrefs.getAll().keySet()) {
-                        if (k.startsWith("ch_use_")) ed.remove(k);
-                    }
-                    ed.apply();
-                    Toast.makeText(this, "All channels reset to defaults", Toast.LENGTH_SHORT).show();
-                    setResult(RESULT_OK);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void showCompanionPairingDialog() {
-        TvCommandServer server = TvCommandServer.getInstance(this);
-        String pin = server.getOrGeneratePairingPin();
-        String ip = getDeviceIp();
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Pair Mobile Companion App")
-                .setMessage("1. Open Companion App on your mobile phone.\n"
-                        + "2. Tap Settings / Pair with TV.\n"
-                        + "3. Enter this 6-digit Pairing Code:\n\n"
-                        + "      [   " + pin + "   ]\n\n"
-                        + "TV Address: " + ip + ":" + TvCommandServer.DEFAULT_PORT + "\n"
-                        + "(Expires in 15 minutes)")
-                .setPositiveButton("Done", null)
-                .setNeutralButton("Generate New PIN", null)
-                .create();
-
-        dialog.setOnShowListener(dInterface -> {
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                String newPin = server.generateNewPairingPin();
-                dialog.setMessage("1. Open Companion App on your mobile phone.\n"
-                        + "2. Tap Settings / Pair with TV.\n"
-                        + "3. Enter this 6-digit Pairing Code:\n\n"
-                        + "      [   " + newPin + "   ]\n\n"
-                        + "TV Address: " + ip + ":" + TvCommandServer.DEFAULT_PORT + "\n"
-                        + "(Expires in 15 minutes)");
-                Toast.makeText(this, "Generated new PIN: " + newPin, Toast.LENGTH_SHORT).show();
-            });
-        });
-        dialog.show();
-    }
-
-    private void updateForgetDevicesText(TextView view) {
-        int count = TvCommandServer.getInstance(this).getPairedDeviceCount();
-        view.setText("Forget Paired Devices (" + count + " paired)");
-    }
-
-    private void showForgetDevicesDialog(TextView view) {
-        int count = TvCommandServer.getInstance(this).getPairedDeviceCount();
-        new AlertDialog.Builder(this)
-                .setTitle("Forget Paired Companion Devices")
-                .setMessage("Unpair all " + count + " companion mobile app(s)? They will no longer be able to blast IR or tune TV until re-paired.")
-                .setPositiveButton("Unpair All", (d, w) -> {
-                    TvCommandServer.getInstance(this).unpairAllDevices();
-                    updateForgetDevicesText(view);
-                    Toast.makeText(this, "All mobile devices forgotten", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private String getDeviceIp() {
-        try {
-            java.util.List<java.net.NetworkInterface> interfaces = java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces());
-            for (java.net.NetworkInterface intf : interfaces) {
-                java.util.List<java.net.InetAddress> addrs = java.util.Collections.list(intf.getInetAddresses());
-                for (java.net.InetAddress addr : addrs) {
-                    if (!addr.isLoopbackAddress() && addr instanceof java.net.Inet4Address) {
-                        return addr.getHostAddress();
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        return "100.97.35.51";
-    }
-
     private void setAdvanced(boolean enabled) {
         advancedEffects = enabled;
         choices.edit().putBoolean("advanced_effects", enabled).apply();
@@ -538,8 +241,6 @@ public final class LauncherSettingsActivity extends Activity {
         followThemeChoice.setSelected(!hasOnTvChoices());
         lunarChoice.setText(getString(R.string.lunar_date_state,
                 getString(lunarDate ? R.string.on : R.string.off)));
-        railChannelsChoice.setText(getString(R.string.rail_channels_state,
-                getString(showChannelsRail ? R.string.rail_shown : R.string.rail_hidden)));
         railInputsChoice.setText(getString(R.string.rail_inputs_state,
                 getString(showInputsRail ? R.string.rail_shown : R.string.rail_hidden)));
         railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
