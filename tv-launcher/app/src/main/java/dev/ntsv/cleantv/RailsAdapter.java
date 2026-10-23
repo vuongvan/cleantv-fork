@@ -46,11 +46,17 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
     private final Context context;
     private final List<RailConfig> rails = new ArrayList<>();
     private final OnRailHeaderClickListener headerClickListener;
+    private int favoriteOffsetPx;
     private final RecyclerView.RecycledViewPool sharedPool = new RecyclerView.RecycledViewPool();
 
     public RailsAdapter(Context context, OnRailHeaderClickListener headerClickListener) {
         this.context = context;
         this.headerClickListener = headerClickListener;
+    }
+
+    /** Pushes the Favorite Apps row down by this many pixels (used when it is the bottom row). */
+    public void setFavoriteOffset(int px) {
+        favoriteOffsetPx = px;
     }
 
     public void setRails(List<RailConfig> list) {
@@ -81,6 +87,7 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
     @Override
     public void onBindViewHolder(@NonNull RailViewHolder holder, int position) {
         RailConfig cfg = rails.get(position);
+        holder.itemView.setTranslationY(cfg.type == RAIL_APPS ? favoriteOffsetPx : 0f);
         holder.title.setText(cfg.title);
         holder.icon.setImageResource(cfg.iconRes);
 
@@ -124,7 +131,6 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
                 View v = vh != null ? vh.itemView : (recycler.getChildCount() > 0 ? recycler.getChildAt(0) : null);
                 if (v != null) {
                     View card = v.findViewById(R.id.card);
-                    if (card == null) card = v.findViewById(R.id.input_card);
                     if (card != null) card.requestFocus();
                 }
             });

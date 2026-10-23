@@ -20,9 +20,6 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView lunarChoice;
-    private TextView favoriteSizeLabel;
-    private int favoriteSize;
-    private TextView railInputsChoice;
     private TextView railAllAppsChoice;
     private TextView favoritesBottomChoice;
     private boolean favoritesBottom;
@@ -31,7 +28,6 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean animations;
     private boolean advancedEffects;
     private boolean lunarDate;
-    private boolean showInputsRail;
     private boolean showAllAppsRail;
 
     @Override
@@ -44,8 +40,6 @@ public final class LauncherSettingsActivity extends Activity {
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
         lunarDate = config.lunarDate;
-        favoriteSize = config.favoriteSize;
-        showInputsRail = config.showInputsRail;
         showAllAppsRail = config.showAllAppsRail;
         favoritesBottom = config.favoritesBottom;
 
@@ -102,13 +96,6 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             refresh();
         });
-        railInputsChoice = findViewById(R.id.railInputsChoice);
-        railInputsChoice.setOnClickListener(v -> {
-            showInputsRail = !showInputsRail;
-            choices.edit().putBoolean(Config.KEY_RAIL_INPUTS, showInputsRail).apply();
-            setResult(RESULT_OK);
-            refresh();
-        });
         railAllAppsChoice = findViewById(R.id.railAllAppsChoice);
         railAllAppsChoice.setOnClickListener(v -> {
             showAllAppsRail = !showAllAppsRail;
@@ -123,29 +110,12 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             refresh();
         });
-        favoriteSizeLabel = findViewById(R.id.favoriteSizeLabel);
-        SeekBar favoriteSizeBar = findViewById(R.id.favoriteSizeBar);
-        favoriteSizeBar.setMax(Config.MAX_FAVORITE_SIZE - Config.MIN_FAVORITE_SIZE);
-        favoriteSizeBar.setKeyProgressIncrement(1);
-        favoriteSizeBar.setProgress(favoriteSize - Config.MIN_FAVORITE_SIZE);
-        favoriteSizeLabel.setText(getString(R.string.favorite_size_label, favoriteSize));
-        favoriteSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                favoriteSize = progress + Config.MIN_FAVORITE_SIZE;
-                favoriteSizeLabel.setText(getString(R.string.favorite_size_label, favoriteSize));
-                choices.edit().putInt(Config.KEY_FAVORITE_SIZE, favoriteSize).apply();
-                setResult(RESULT_OK);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar bar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar bar) {
-            }
-        });
+        bindSlider(R.id.favoriteSizeLabel, R.id.favoriteSizeBar, R.string.favorite_size_label,
+                Config.MIN_FAVORITE_SIZE, Config.MAX_FAVORITE_SIZE, config.favoriteSize, Config.KEY_FAVORITE_SIZE);
+        bindSlider(R.id.favoriteOffsetLabel, R.id.favoriteOffsetBar, R.string.favorite_offset_label,
+                0, Config.MAX_FAVORITE_OFFSET, config.favoriteOffset, Config.KEY_FAVORITE_OFFSET);
+        bindSlider(R.id.cornerRadiusLabel, R.id.cornerRadiusBar, R.string.corner_radius_label,
+                0, Config.MAX_CORNER_RADIUS, config.cornerRadius, Config.KEY_CORNER_RADIUS);
         findViewById(R.id.chooseWallpaperChoice).setOnClickListener(v -> pickWallpaper());
         findViewById(R.id.removeWallpaperChoice).setOnClickListener(v -> {
             java.io.File dir = Config.dir(this);
@@ -177,6 +147,36 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
         columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
 
+    }
+
+    /**
+     * A D-pad friendly slider (left/right change it by one) that saves its value right away.
+     * The label shows the value; MainActivity rebuilds when this screen closes with RESULT_OK.
+     */
+    private void bindSlider(int labelId, int barId, int labelRes, int min, int max, int value, String key) {
+        TextView label = findViewById(labelId);
+        SeekBar bar = findViewById(barId);
+        bar.setMax(max - min);
+        bar.setKeyProgressIncrement(1);
+        bar.setProgress(value - min);
+        label.setText(getString(labelRes, value));
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+                int v = progress + min;
+                label.setText(getString(labelRes, v));
+                choices.edit().putInt(key, v).apply();
+                setResult(RESULT_OK);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar b) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar b) {
+            }
+        });
     }
 
     /** Opens the system file picker for an image; TVs without one get the manual route. */
@@ -241,8 +241,6 @@ public final class LauncherSettingsActivity extends Activity {
         followThemeChoice.setSelected(!hasOnTvChoices());
         lunarChoice.setText(getString(R.string.lunar_date_state,
                 getString(lunarDate ? R.string.on : R.string.off)));
-        railInputsChoice.setText(getString(R.string.rail_inputs_state,
-                getString(showInputsRail ? R.string.rail_shown : R.string.rail_hidden)));
         railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
                 getString(showAllAppsRail ? R.string.rail_shown : R.string.rail_hidden)));
         favoritesBottomChoice.setText(getString(R.string.favorites_bottom_state,

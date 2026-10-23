@@ -2,7 +2,9 @@ package dev.ntsv.cleantv;
 
 import android.animation.ValueAnimator;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Build;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -36,6 +38,12 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     private final List<RailCard> items = new ArrayList<>();
     private FocusListener focusListener;
     private NavigationListener navigationListener;
+    private int cornerRadiusPx;
+
+    /** Corner radius of every card, in pixels (0 = square). */
+    public void setCornerRadius(int px) {
+        cornerRadiusPx = px;
+    }
 
     public void setItems(List<RailCard> list) {
         items.clear();
@@ -66,6 +74,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         RailCard card = items.get(position);
         applyScale(holder, card.scale);
+        holder.setCornerRadius(cornerRadiusPx);
         holder.title.setText(card.title);
         holder.title.setVisibility(View.INVISIBLE);
         holder.title.setAlpha(0f);
@@ -199,9 +208,24 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         final TextView textFallback;
         final TextView badge;
         final TextView title;
-        /** White border drawn over the focused card; its alpha pulses so the selection is easy to find. */
-        private final GradientDrawable ring = new GradientDrawable();
+        /**
+         * Border drawn over the focused card: white with a black edge on both sides, so it shows on white
+         * icons as well as dark ones. Its alpha pulses so the selection is easy to find.
+         */
+        private final GradientDrawable ringOuter = new GradientDrawable();
+        private final GradientDrawable ringInner = new GradientDrawable();
+        private final LayerDrawable ring = new LayerDrawable(new Drawable[]{ringOuter, ringInner});
+        private final int ringInset;
+        private int radius;
         private ValueAnimator pulse;
+
+        void setCornerRadius(int px) {
+            if (px == radius) return;
+            radius = px;
+            ringOuter.setCornerRadius(px);
+            ringInner.setCornerRadius(Math.max(0, px - ringInset));
+            card.invalidateOutline();
+        }
 
         /** Focused card: a bright border that breathes, plus a glow (a coloured shadow, Android 9 and up). */
         void setFocusFx(boolean focused, int accent) {
@@ -219,8 +243,9 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 int glow = accent == 0 ? Color.WHITE : blendToWhite(accent, 0.55f);
-                card.setOutlineSpotShadowColor(glow);
+                // Light glow all around, black key shadow underneath: visible on any background.
                 card.setOutlineAmbientShadowColor(glow);
+                card.setOutlineSpotShadowColor(Color.BLACK);
             }
             ring.setAlpha(255);
             pulse = ValueAnimator.ofInt(255, 140);
@@ -242,9 +267,14 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
             super(itemView);
             card = itemView.findViewById(R.id.card);
             float d = itemView.getResources().getDisplayMetrics().density;
-            ring.setShape(GradientDrawable.RECTANGLE);
-            ring.setColor(Color.TRANSPARENT);
-            ring.setStroke(Math.round(3 * d), Color.WHITE);
+            ringInset = Math.round(1.5f * d);
+            for (GradientDrawable g : new GradientDrawable[]{ringOuter, ringInner}) {
+                g.setShape(GradientDrawable.RECTANGLE);
+                g.setColor(Color.TRANSPARENT);
+            }
+            ringOuter.setStroke(Math.round(5 * d), Color.BLACK);
+            ringInner.setStroke(Math.round(2 * d), Color.WHITE);
+            ring.setLayerInset(1, ringInset, ringInset, ringInset, ringInset);
             ring.setAlpha(0);
             card.setForeground(ring);
             bannerFill = itemView.findViewById(R.id.banner_fill);
@@ -258,7 +288,11 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
             card.setOutlineProvider(new android.view.ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, android.graphics.Outline outline) {
-                    outline.setRect(0, 0, view.getWidth(), view.getHeight());
+                    if (radius > 0) {
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+                    } else {
+                        outline.setRect(0, 0, view.getWidth(), view.getHeight());
+                    }
                 }
             });
             card.setClipToOutline(true);

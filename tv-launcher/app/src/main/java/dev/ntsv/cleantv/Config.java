@@ -34,7 +34,11 @@ final class Config {
     static final String SETTINGS_NAME = "launcher_settings";
     /** On-TV choices (SharedPreferences SETTINGS_NAME) added for the lunar date, hideable rows and pinned apps. */
     static final String KEY_LUNAR_DATE = "lunar_date";
-    static final String KEY_RAIL_INPUTS = "rail_inputs";
+    static final String KEY_CORNER_RADIUS = "corner_radius";
+    static final int MAX_CORNER_RADIUS = 24;
+    static final String KEY_FAVORITE_OFFSET = "favorite_offset";
+    static final int DEFAULT_FAVORITE_OFFSET = 20;
+    static final int MAX_FAVORITE_OFFSET = 40;
     static final String KEY_RAIL_ALL_APPS = "rail_all_apps";
     static final String KEY_PINNED_APPS = "pinned_apps";
     static final String KEY_FAVORITES_BOTTOM = "favorites_bottom";
@@ -60,12 +64,15 @@ final class Config {
     /** Vietnamese lunar date under the Gregorian one (on-TV choice "lunar_date", default on). */
     final boolean lunarDate;
     /** Rows that can be hidden from the home screen (on-TV choices); Favorite Apps is always shown. */
-    final boolean showInputsRail;
     final boolean showAllAppsRail;
     /** Favorite Apps as the bottom row, with the other rows and the wallpaper above it. */
     final boolean favoritesBottom;
     /** Size of every Favorite Apps card in tenths: 10 is normal, 5 half, 20 double. */
     final int favoriteSize;
+    /** Corner radius of every card in dp (0 = square). */
+    final int cornerRadius;
+    /** How far the bottom Favorite Apps row is pushed down, in dp. */
+    final int favoriteOffset;
     final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
@@ -84,7 +91,8 @@ final class Config {
                    String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
                    boolean shamsiDate, boolean lunarDate,
-                   boolean showInputsRail, boolean showAllAppsRail, boolean favoritesBottom, int favoriteSize,
+                   boolean showAllAppsRail, boolean favoritesBottom, int favoriteSize,
+                   int cornerRadius, int favoriteOffset,
                    boolean moduleCards, boolean reducedMotion, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, boolean overlayApplied) {
@@ -101,10 +109,11 @@ final class Config {
         this.advancedEffects = advancedEffects;
         this.shamsiDate = shamsiDate;
         this.lunarDate = lunarDate;
-        this.showInputsRail = showInputsRail;
         this.showAllAppsRail = showAllAppsRail;
         this.favoritesBottom = favoritesBottom;
         this.favoriteSize = favoriteSize;
+        this.cornerRadius = cornerRadius;
+        this.favoriteOffset = favoriteOffset;
         this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
         this.vpnApp = vpnApp;
@@ -179,9 +188,11 @@ final class Config {
         List<String> pinned = loadPinned(choices);
         if (pinned != null) dock = pinned;
         boolean lunar = choices.getBoolean(KEY_LUNAR_DATE, true);
-        boolean showInputs = choices.getBoolean(KEY_RAIL_INPUTS, true);
         boolean showAllApps = choices.getBoolean(KEY_RAIL_ALL_APPS, true);
         boolean favoritesBottom = choices.getBoolean(KEY_FAVORITES_BOTTOM, false);
+        int cornerRadius = Math.max(0, Math.min(MAX_CORNER_RADIUS, choices.getInt(KEY_CORNER_RADIUS, 0)));
+        int favoriteOffset = Math.max(0, Math.min(MAX_FAVORITE_OFFSET,
+                choices.getInt(KEY_FAVORITE_OFFSET, DEFAULT_FAVORITE_OFFSET)));
         int favoriteSize = Math.max(MIN_FAVORITE_SIZE, Math.min(MAX_FAVORITE_SIZE,
                 choices.getInt(KEY_FAVORITE_SIZE, DEFAULT_FAVORITE_SIZE)));
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
@@ -191,7 +202,7 @@ final class Config {
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, lunar, showInputs, showAllApps, favoritesBottom, favoriteSize,
+                shamsi, lunar, showAllApps, favoritesBottom, favoriteSize, cornerRadius, favoriteOffset,
                 moduleCards, reducedMotion, vpn, homeSettings, background,
                 Math.max(0, Math.min(100, skyIntensity)), wallpaper, applied);
     }

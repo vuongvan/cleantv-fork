@@ -112,7 +112,6 @@ public class MainActivity extends Activity {
     private boolean lunar;
     /** Favorite apps in order: dock_apps, or what the owner pinned on the TV (long-press an app). */
     private List<String> pinnedApps = new ArrayList<>();
-    private boolean showInputsRail = true;
     private boolean showAllAppsRail = true;
     private boolean favoritesBottom;
     /** Rail types in the order they are shown, top to bottom. */
@@ -122,7 +121,6 @@ public class MainActivity extends Activity {
 
     private RailsAdapter railsAdapter;
     private RailCardsAdapter favAppsAdapter;
-    private RailCardsAdapter inputsAdapter;
     private RailCardsAdapter allAppsAdapter;
     private Config cfg;
     /** Optional time-of-day backdrop (config.xml, sky_intensity); 0 keeps it hidden. */
@@ -257,7 +255,6 @@ public class MainActivity extends Activity {
         lunar = cfg.lunarDate && lunarDate != null;
         if (lunarDate != null) lunarDate.setVisibility(lunar ? View.VISIBLE : View.GONE);
         pinnedApps = new ArrayList<>(cfg.dockApps);
-        showInputsRail = cfg.showInputsRail;
         showAllAppsRail = cfg.showAllAppsRail;
         favoritesBottom = cfg.favoritesBottom;
         favoriteScale = cfg.favoriteSize / 10f;
@@ -290,20 +287,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        inputsAdapter = new RailCardsAdapter();
-        inputsAdapter.setFocusListener((card, view) -> onCardFocused(view, card.accentColor));
-        inputsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
-            @Override
-            public boolean onNavigateUp(int position) {
-                return moveRailFocus(RailsAdapter.RAIL_INPUTS, -1);
-            }
-
-            @Override
-            public boolean onNavigateDown(int position) {
-                return moveRailFocus(RailsAdapter.RAIL_INPUTS, 1);
-            }
-        });
-
         allAppsAdapter = new RailCardsAdapter();
         allAppsAdapter.setFocusListener((card, view) -> onCardFocused(view, card.accentColor));
         allAppsAdapter.setNavigationListener(new RailCardsAdapter.NavigationListener() {
@@ -318,16 +301,15 @@ public class MainActivity extends Activity {
             }
         });
 
-        railsAdapter = new RailsAdapter(this, railType -> {
-            if (railType == RailsAdapter.RAIL_INPUTS) showInputs();
-        });
+        railsAdapter = new RailsAdapter(this, railType -> { });
+        railsAdapter.setFavoriteOffset(favoritesBottom ? Math.round(cfg.favoriteOffset * density) : 0);
+        int cornerPx = Math.round(cfg.cornerRadius * density);
+        favAppsAdapter.setCornerRadius(cornerPx);
+        allAppsAdapter.setCornerRadius(cornerPx);
 
         List<RailsAdapter.RailConfig> configs = new ArrayList<>();
         RailsAdapter.RailConfig favoritesRail = new RailsAdapter.RailConfig(RailsAdapter.RAIL_APPS, "Favorite Apps", R.drawable.ic_apps, 0xFFE11D48, favAppsAdapter);
         if (!favoritesBottom) configs.add(favoritesRail);
-        if (showInputsRail) {
-            configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_INPUTS, "Inputs", R.drawable.ic_input, 0xFF10B981, inputsAdapter));
-        }
         if (showAllAppsRail) {
             configs.add(new RailsAdapter.RailConfig(RailsAdapter.RAIL_ALL_APPS, "All Apps", R.drawable.ic_apps, 0xFF8B5CF6, allAppsAdapter));
         }
@@ -338,7 +320,6 @@ public class MainActivity extends Activity {
 
         grid.setAdapter(railsAdapter);
         reloadApps();
-        reloadInputs();
         grid.post(() -> focusRail(RailsAdapter.RAIL_APPS));
 
         // Keep the glass glued to its tile while the grid scrolls.
@@ -407,7 +388,7 @@ public class MainActivity extends Activity {
 
         // Hide the glass when focus leaves the tiles.
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
-            boolean onTile = newF != null && (newF.getId() == R.id.card || newF.getId() == R.id.input_card);
+            boolean onTile = newF != null && (newF.getId() == R.id.card);
             if (!onTile) hideGlass();
         });
 
@@ -562,7 +543,6 @@ public class MainActivity extends Activity {
      */
     private void reloadTiles() {
         reloadApps();
-        reloadInputs();
     }
 
     private RailCard createAppCard(AppsRowAdapter.AppItem item) {
@@ -729,58 +709,6 @@ public class MainActivity extends Activity {
         if (allAppsAdapter != null) allAppsAdapter.setItems(otherCards);
     }
 
-    private void reloadInputs() {
-        List<InputsAdapter.InputItem> list = new ArrayList<>();
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (tim != null) {
-            for (TvInputInfo info : tim.getTvInputList()) {
-                CharSequence label = info.loadLabel(this);
-                String labelStr = label != null ? label.toString() : info.getId();
-                String upper = labelStr.toUpperCase(Locale.ROOT);
-                int iconRes = R.drawable.ic_input;
-                int color = 0xFF10B981;
-                String badge = "READY";
-                if (upper.contains("AV") || info.getId().toLowerCase(Locale.ROOT).contains("composite")) {
-                    iconRes = R.drawable.ic_av;
-                    badge = "AV";
-                } else if (upper.contains("HDMI")) {
-                    iconRes = R.drawable.ic_input;
-                    badge = "HDMI";
-                } else if (upper.contains("TUNER") || upper.contains("TV")) {
-                    iconRes = R.drawable.ic_livetv;
-                    badge = "TV";
-                }
-                list.add(new InputsAdapter.InputItem(info.getId(), labelStr, badge, iconRes, color));
-            }
-        }
-
-        List<RailCard> inputCards = new ArrayList<>();
-        for (InputsAdapter.InputItem it : list) {
-            inputCards.add(new RailCard(
-                    it.id,
-                    it.title,
-                    it.badge,
-                    null,
-                    it.iconRes,
-                    RailCard.ArtworkStyle.ICON_CENTER,
-                    it.accentColor,
-                    it,
-                    new RailCard.ActionListener() {
-                        @Override
-                        public void onClick(RailCard card) {
-                            onInputSelected((InputsAdapter.InputItem) card.payload);
-                        }
-
-                        @Override
-                        public boolean onLongClick(RailCard card) {
-                            return false;
-                        }
-                    }
-            ));
-        }
-        if (inputsAdapter != null) inputsAdapter.setItems(inputCards);
-    }
-
     private void onAppSelected(AppsRowAdapter.AppItem item) {
         if (item.component == null) return;
         Intent i = new Intent(Intent.ACTION_MAIN)
@@ -794,13 +722,8 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void onInputSelected(InputsAdapter.InputItem item) {
-        openInput(item.id);
-    }
-
     private boolean isRailVisible(int railType) {
         switch (railType) {
-            case RailsAdapter.RAIL_INPUTS: return showInputsRail;
             case RailsAdapter.RAIL_ALL_APPS: return showAllAppsRail;
             default: return true;   // Favorite Apps is always there
         }
@@ -1015,25 +938,13 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {
         }
-        // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
+        // Icon only: the network name and the VPN state go to the accessibility label.
         boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
-        if (vpn || vpnDown) {
-            // Network name, then the green lock-and-VPN (or red "VPN off") capsule drawn in place of the word.
-            String badge = getString(vpn ? R.string.vpn : R.string.vpn_off);
-            VpnBadge span = new VpnBadge(vpn ? getDrawable(R.drawable.ic_lock) : null, density);
-            // The pill has a maximum width and ellipsizes at the end, which would cut the badge off after
-            // a long network name, so shorten the name to whatever room the badge leaves. The total paddings
-            // include the Wi-Fi icon.
-            TextPaint paint = btnWifi.getPaint();
-            float room = btnWifi.getMaxWidth() - btnWifi.getTotalPaddingStart() - btnWifi.getTotalPaddingEnd()
-                    - span.getSize(paint, badge, 0, badge.length(), null) - paint.measureText(" ") - 2 * density;
-            text = TextUtils.ellipsize(text, paint, Math.max(0, room), TextUtils.TruncateAt.END).toString();
-            SpannableString label = new SpannableString(text + " " + badge);
-            label.setSpan(span, text.length() + 1, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            btnWifi.setText(label);
-        } else {
-            btnWifi.setText(text);
-        }
+        String description = text;
+        if (vpn) description += " \u00B7 " + getString(R.string.vpn);
+        else if (vpnDown) description += " \u00B7 " + getString(R.string.vpn_off);
+        btnWifi.setText("");
+        btnWifi.setContentDescription(description);
         btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
     }
 
