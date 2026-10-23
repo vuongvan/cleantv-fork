@@ -44,7 +44,7 @@ jobs:
       - name: Generate test keystore
         run: |
           keytool -genkeypair -v \
-          -keystore cleantv-release.jks \
+          -keystore cleantv-release4.jks \
           -alias testkey \
           -keyalg RSA -keysize 2048 -validity 10000 \
           -storepass testpass123 -keypass testpass123 \
