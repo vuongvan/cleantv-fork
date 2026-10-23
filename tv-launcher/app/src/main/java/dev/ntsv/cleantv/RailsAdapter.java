@@ -124,7 +124,6 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
                 View v = vh != null ? vh.itemView : (recycler.getChildCount() > 0 ? recycler.getChildAt(0) : null);
                 if (v != null) {
                     View card = v.findViewById(R.id.card);
-                    if (card == null) card = v.findViewById(R.id.channel_card);
                     if (card == null) card = v.findViewById(R.id.input_card);
                     if (card != null) card.requestFocus();
                 }

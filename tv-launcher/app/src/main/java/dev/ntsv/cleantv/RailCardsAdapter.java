@@ -1,5 +1,9 @@
 package dev.ntsv.cleantv;
 
+import android.animation.ValueAnimator;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -126,6 +130,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         // Unified elevation shadow & text motion from TvDesignTokens
         holder.card.setOnFocusChangeListener((v, hasFocus) -> {
             TvDesignTokens.animateFocus(v, holder.title, hasFocus);
+            holder.setFocusFx(hasFocus, card.accentColor);
             if (hasFocus && focusListener != null) {
                 focusListener.onCardFocus(card, v);
             }
@@ -146,6 +151,12 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
             }
             return false;
         });
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull ViewHolder holder) {
+        super.onViewRecycled(holder);
+        holder.setFocusFx(false, 0);
     }
 
     @Override
@@ -188,10 +199,54 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         final TextView textFallback;
         final TextView badge;
         final TextView title;
+        /** White border drawn over the focused card; its alpha pulses so the selection is easy to find. */
+        private final GradientDrawable ring = new GradientDrawable();
+        private ValueAnimator pulse;
+
+        /** Focused card: a bright border that breathes, plus a glow (a coloured shadow, Android 9 and up). */
+        void setFocusFx(boolean focused, int accent) {
+            if (pulse != null) {
+                pulse.cancel();
+                pulse = null;
+            }
+            if (!focused) {
+                ring.setAlpha(0);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    card.setOutlineSpotShadowColor(Color.BLACK);
+                    card.setOutlineAmbientShadowColor(Color.BLACK);
+                }
+                return;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                int glow = accent == 0 ? Color.WHITE : blendToWhite(accent, 0.55f);
+                card.setOutlineSpotShadowColor(glow);
+                card.setOutlineAmbientShadowColor(glow);
+            }
+            ring.setAlpha(255);
+            pulse = ValueAnimator.ofInt(255, 140);
+            pulse.setDuration(850);
+            pulse.setRepeatMode(ValueAnimator.REVERSE);
+            pulse.setRepeatCount(ValueAnimator.INFINITE);
+            pulse.addUpdateListener(a -> ring.setAlpha((Integer) a.getAnimatedValue()));
+            pulse.start();
+        }
+
+        private static int blendToWhite(int color, float amount) {
+            int r = Math.round(Color.red(color) + (255 - Color.red(color)) * amount);
+            int g = Math.round(Color.green(color) + (255 - Color.green(color)) * amount);
+            int b = Math.round(Color.blue(color) + (255 - Color.blue(color)) * amount);
+            return Color.rgb(r, g, b);
+        }
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             card = itemView.findViewById(R.id.card);
+            float d = itemView.getResources().getDisplayMetrics().density;
+            ring.setShape(GradientDrawable.RECTANGLE);
+            ring.setColor(Color.TRANSPARENT);
+            ring.setStroke(Math.round(3 * d), Color.WHITE);
+            ring.setAlpha(0);
+            card.setForeground(ring);
             bannerFill = itemView.findViewById(R.id.banner_fill);
             artworkCenter = itemView.findViewById(R.id.artwork_center);
             artworkIcon = itemView.findViewById(R.id.artwork_icon);
