@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="home_screen_section">Màn hình chính</string>
+    <string name="lunar_date_state">Hiển thị lịch âm: %1$s</string>
+    <string name="rail_all_apps_state">Hàng Tất cả ứng dụng: %1$s</string>
+    <string name="rail_shown">Hiện</string>
+    <string name="rail_hidden">Ẩn</string>
+    <string name="rails_hint">Giữ nút OK trên một ứng dụng để ghim vào Ứng dụng yêu thích. Hàng đã ẩn có thể bật lại ở đây; muốn ghim thì hàng Tất cả ứng dụng phải đang hiện.</string>
+    <string name="reset_favorites">Khôi phục Ứng dụng yêu thích mặc định</string>
+    <string name="reset_favorites_done">Đã khôi phục Ứng dụng yêu thích</string>
+    <string name="open_app">Mở</string>
+    <string name="pin_to_favorites">Ghim vào Ứng dụng yêu thích</string>
+    <string name="unpin_from_favorites">Bỏ ghim khỏi Ứng dụng yêu thích</string>
+    <string name="app_info">Thông tin ứng dụng</string>
+    <string name="pinned_toast">Đã ghim %1$s</string>
+    <string name="unpinned_toast">Đã bỏ ghim %1$s</string>
+    <string name="on">Bật</string>
+    <string name="off">Tắt</string>
+    <string name="favorites_bottom_state">Hàng Ứng dụng yêu thích ở dưới cùng: %1$s</string>
+    <string name="choose_wallpaper">Chọn ảnh nền</string>
+    <string name="remove_wallpaper">Xóa ảnh nền</string>
+    <string name="wallpaper_working">Đang xử lý ảnh nền…</string>
+    <string name="wallpaper_set">Đã đặt ảnh nền</string>
+    <string name="wallpaper_removed">Đã xóa ảnh nền</string>
+    <string name="wallpaper_none">Không có ảnh nền để xóa</string>
+    <string name="wallpaper_failed">Không dùng được ảnh này</string>
+    <string name="wallpaper_no_picker">TV này không có trình chọn tệp. Hãy chép ảnh vào đường dẫn sau rồi khởi động lại Home:\n%1$s</string>
+    <string name="move_left">Di chuyển sang trái</string>
+    <string name="move_right">Di chuyển sang phải</string>
+    <string name="favorite_size_label">Kích thước thẻ Yêu thích: %1$d (10 = bình thường)</string>
+    <string name="favorite_offset_label">Hạ hàng Yêu thích xuống thêm: %1$d dp (chỉ khi ở dưới cùng)</string>
+    <string name="corner_radius_label">Bo góc thẻ: %1$d dp (0 = vuông)</string>
+    <string name="glass_effect_state">Hiệu ứng glass khi chuyển thẻ: %1$s</string>
+    <string name="app_glow_state">Glass và glow theo màu ứng dụng: %1$s</string>
+    <string name="ambient_state">Glow nền: %1$s</string>
+    <string name="ambient_off">Tắt</string>
+    <string name="ambient_radial">Tỏa tròn</string>
+    <string name="ambient_horizon">Đường chân trời</string>
+</resources>

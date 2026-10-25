@@ -34,6 +34,9 @@ final class Config {
     static final String SETTINGS_NAME = "launcher_settings";
     /** On-TV choices (SharedPreferences SETTINGS_NAME) added for the lunar date, hideable rows and pinned apps. */
     static final String KEY_LUNAR_DATE = "lunar_date";
+    static final String KEY_GLASS_EFFECT = "glass_effect";
+    static final String KEY_APP_GLOW = "app_glow";
+    static final String KEY_AMBIENT_STYLE = "ambient_style";
     static final String KEY_CORNER_RADIUS = "corner_radius";
     static final int MAX_CORNER_RADIUS = 24;
     static final String KEY_FAVORITE_OFFSET = "favorite_offset";
@@ -73,6 +76,12 @@ final class Config {
     final int cornerRadius;
     /** How far the bottom Favorite Apps row is pushed down, in dp. */
     final int favoriteOffset;
+    /** The glass slab that glides between cards. */
+    final boolean glassEffect;
+    /** Glass and glow in the focused app's colour (false: plain white). */
+    final boolean appGlow;
+    /** Glow behind the screen: 0 off, 1 radial, 2 horizon. */
+    final int ambientStyle;
     final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
@@ -92,7 +101,7 @@ final class Config {
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
                    boolean shamsiDate, boolean lunarDate,
                    boolean showAllAppsRail, boolean favoritesBottom, int favoriteSize,
-                   int cornerRadius, int favoriteOffset,
+                   int cornerRadius, int favoriteOffset, boolean glassEffect, boolean appGlow, int ambientStyle,
                    boolean moduleCards, boolean reducedMotion, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, boolean overlayApplied) {
@@ -114,6 +123,9 @@ final class Config {
         this.favoriteSize = favoriteSize;
         this.cornerRadius = cornerRadius;
         this.favoriteOffset = favoriteOffset;
+        this.glassEffect = glassEffect;
+        this.appGlow = appGlow;
+        this.ambientStyle = ambientStyle;
         this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
         this.vpnApp = vpnApp;
@@ -190,6 +202,9 @@ final class Config {
         boolean lunar = choices.getBoolean(KEY_LUNAR_DATE, true);
         boolean showAllApps = choices.getBoolean(KEY_RAIL_ALL_APPS, true);
         boolean favoritesBottom = choices.getBoolean(KEY_FAVORITES_BOTTOM, false);
+        boolean glassEffect = choices.getBoolean(KEY_GLASS_EFFECT, true);
+        boolean appGlow = choices.getBoolean(KEY_APP_GLOW, true);
+        int ambientStyle = Math.max(0, Math.min(2, choices.getInt(KEY_AMBIENT_STYLE, 1)));
         int cornerRadius = Math.max(0, Math.min(MAX_CORNER_RADIUS, choices.getInt(KEY_CORNER_RADIUS, 0)));
         int favoriteOffset = Math.max(0, Math.min(MAX_FAVORITE_OFFSET,
                 choices.getInt(KEY_FAVORITE_OFFSET, DEFAULT_FAVORITE_OFFSET)));
@@ -202,7 +217,7 @@ final class Config {
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, lunar, showAllApps, favoritesBottom, favoriteSize, cornerRadius, favoriteOffset,
+                shamsi, lunar, showAllApps, favoritesBottom, favoriteSize, cornerRadius, favoriteOffset, glassEffect, appGlow, ambientStyle,
                 moduleCards, reducedMotion, vpn, homeSettings, background,
                 Math.max(0, Math.min(100, skyIntensity)), wallpaper, applied);
     }

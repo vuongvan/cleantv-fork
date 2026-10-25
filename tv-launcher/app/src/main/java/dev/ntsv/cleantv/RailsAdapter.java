@@ -47,6 +47,7 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
     private final List<RailConfig> rails = new ArrayList<>();
     private final OnRailHeaderClickListener headerClickListener;
     private int favoriteOffsetPx;
+    private RecyclerView.OnScrollListener innerScrollListener;
     private final RecyclerView.RecycledViewPool sharedPool = new RecyclerView.RecycledViewPool();
 
     public RailsAdapter(Context context, OnRailHeaderClickListener headerClickListener) {
@@ -55,6 +56,11 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
     }
 
     /** Pushes the Favorite Apps row down by this many pixels (used when it is the bottom row). */
+    /** Told when any rail scrolls sideways: the glass over the focused card has to move with it. */
+    public void setInnerScrollListener(RecyclerView.OnScrollListener l) {
+        innerScrollListener = l;
+    }
+
     public void setFavoriteOffset(int px) {
         favoriteOffsetPx = px;
     }
@@ -81,6 +87,7 @@ public class RailsAdapter extends RecyclerView.Adapter<RailsAdapter.RailViewHold
         vh.recycler.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false));
         vh.recycler.setItemViewCacheSize(10);
         vh.recycler.setRecycledViewPool(sharedPool);
+        if (innerScrollListener != null) vh.recycler.addOnScrollListener(innerScrollListener);
         return vh;
     }
 

@@ -29,4 +29,10 @@
     <string name="favorite_size_label">Favorite card size: %1$d (10 = normal)</string>
     <string name="favorite_offset_label">Favorite row lower by: %1$d dp (bottom row only)</string>
     <string name="corner_radius_label">Card corner radius: %1$d dp (0 = square)</string>
+    <string name="glass_effect_state">Glass highlight between cards: %1$s</string>
+    <string name="app_glow_state">Glass and glow in the app\'s colour: %1$s</string>
+    <string name="ambient_state">Background glow: %1$s</string>
+    <string name="ambient_off">Off</string>
+    <string name="ambient_radial">Radial</string>
+    <string name="ambient_horizon">Horizon</string>
 </resources>

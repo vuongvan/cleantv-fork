@@ -22,6 +22,12 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView lunarChoice;
     private TextView railAllAppsChoice;
     private TextView favoritesBottomChoice;
+    private TextView glassChoice;
+    private TextView appGlowChoice;
+    private TextView ambientChoice;
+    private boolean glassEffect;
+    private boolean appGlow;
+    private int ambientStyle;
     private boolean favoritesBottom;
     private static final int PICK_WALLPAPER = 41;
     private int columns;
@@ -42,6 +48,9 @@ public final class LauncherSettingsActivity extends Activity {
         lunarDate = config.lunarDate;
         showAllAppsRail = config.showAllAppsRail;
         favoritesBottom = config.favoritesBottom;
+        glassEffect = config.glassEffect;
+        appGlow = config.appGlow;
+        ambientStyle = config.ambientStyle;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -107,6 +116,27 @@ public final class LauncherSettingsActivity extends Activity {
         favoritesBottomChoice.setOnClickListener(v -> {
             favoritesBottom = !favoritesBottom;
             choices.edit().putBoolean(Config.KEY_FAVORITES_BOTTOM, favoritesBottom).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        glassChoice = findViewById(R.id.glassChoice);
+        glassChoice.setOnClickListener(v -> {
+            glassEffect = !glassEffect;
+            choices.edit().putBoolean(Config.KEY_GLASS_EFFECT, glassEffect).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        appGlowChoice = findViewById(R.id.appGlowChoice);
+        appGlowChoice.setOnClickListener(v -> {
+            appGlow = !appGlow;
+            choices.edit().putBoolean(Config.KEY_APP_GLOW, appGlow).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        ambientChoice = findViewById(R.id.ambientChoice);
+        ambientChoice.setOnClickListener(v -> {
+            ambientStyle = (ambientStyle + 1) % 3;
+            choices.edit().putInt(Config.KEY_AMBIENT_STYLE, ambientStyle).apply();
             setResult(RESULT_OK);
             refresh();
         });
@@ -243,6 +273,13 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(lunarDate ? R.string.on : R.string.off)));
         railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
                 getString(showAllAppsRail ? R.string.rail_shown : R.string.rail_hidden)));
+        glassChoice.setText(getString(R.string.glass_effect_state,
+                getString(glassEffect ? R.string.on : R.string.off)));
+        appGlowChoice.setText(getString(R.string.app_glow_state,
+                getString(appGlow ? R.string.on : R.string.off)));
+        ambientChoice.setText(getString(R.string.ambient_state,
+                getString(ambientStyle == 0 ? R.string.ambient_off
+                        : ambientStyle == 1 ? R.string.ambient_radial : R.string.ambient_horizon)));
         favoritesBottomChoice.setText(getString(R.string.favorites_bottom_state,
                 getString(favoritesBottom ? R.string.on : R.string.off)));
     }

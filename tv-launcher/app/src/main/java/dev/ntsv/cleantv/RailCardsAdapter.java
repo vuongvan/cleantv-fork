@@ -39,6 +39,12 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     private FocusListener focusListener;
     private NavigationListener navigationListener;
     private int cornerRadiusPx;
+    private boolean coloredGlow = true;
+
+    /** Glow of the focused card in the app's colour (true) or plain white (false). */
+    public void setColoredGlow(boolean colored) {
+        coloredGlow = colored;
+    }
 
     /** Corner radius of every card, in pixels (0 = square). */
     public void setCornerRadius(int px) {
@@ -139,7 +145,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         // Unified elevation shadow & text motion from TvDesignTokens
         holder.card.setOnFocusChangeListener((v, hasFocus) -> {
             TvDesignTokens.animateFocus(v, holder.title, hasFocus);
-            holder.setFocusFx(hasFocus, card.accentColor);
+            holder.setFocusFx(hasFocus, coloredGlow ? card.accentColor : 0);
             if (hasFocus && focusListener != null) {
                 focusListener.onCardFocus(card, v);
             }

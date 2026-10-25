@@ -17,6 +17,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.LinearGradient;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.Shader;
@@ -60,7 +61,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.dynamicanimation.animation.DynamicAnimation;
 import androidx.dynamicanimation.animation.FloatPropertyCompat;
+import androidx.dynamicanimation.animation.FloatPropertyCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
+import android.view.ViewParent;
 import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -132,6 +135,19 @@ public class MainActivity extends Activity {
     // scroll moves the glass in lockstep with its tile instead of becoming a moving spring target.
     private float glassScrollShift;
     private boolean glassShown;
+    private boolean glassEnabled;
+    private boolean appGlow;
+    /** Glow behind the screen: 0 off, 1 radial, 2 horizon. */
+    private int ambientStyle = 1;
+    // Where the grid (vertical) and the focused card's rail (horizontal) have scrolled the glass; the springs
+    // work in content space, so a scroll moves the glass in lockstep with its card.
+    private float glassShiftX, glassShiftY;
+    private RecyclerView glassRail;
+    private int glassCardW;
+    private int glassAccent;
+    private int cornerPx;
+    private final Rect tileRect = new Rect();
+    private final java.util.Map<String, Integer> accentCache = new HashMap<>();
     // Static so they survive the activity being destroyed while another app is open (low-memory TVs,
     // or Developer options → "Don't keep activities"); they only reset when the process dies.
     private static int lastFocused = 0;
@@ -236,7 +252,11 @@ public class MainActivity extends Activity {
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
-        if (glass != null) glass.setVisibility(View.GONE);
+        glassEnabled = cfg.glassEffect && glass != null;
+        appGlow = cfg.appGlow;
+        ambientStyle = cfg.ambientStyle;
+        if (glass != null) glass.setVisibility(glassEnabled ? View.VISIBLE : View.GONE);
+        if (ambientStyle == 0) ambient.setVisibility(View.GONE);
         ambient = findViewById(R.id.ambient);
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first.
@@ -302,8 +322,18 @@ public class MainActivity extends Activity {
         });
 
         railsAdapter = new RailsAdapter(this, railType -> { });
+        railsAdapter.setInnerScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (!glassShown || rv != glassRail || dx == 0) return;
+                glassShiftX -= dx;
+                glass.setTranslationX(glass.getTranslationX() - dx);
+            }
+        });
         railsAdapter.setFavoriteOffset(favoritesBottom ? Math.round(cfg.favoriteOffset * density) : 0);
-        int cornerPx = Math.round(cfg.cornerRadius * density);
+        cornerPx = Math.round(cfg.cornerRadius * density);
+        favAppsAdapter.setColoredGlow(appGlow);
+        allAppsAdapter.setColoredGlow(appGlow);
         favAppsAdapter.setCornerRadius(cornerPx);
         allAppsAdapter.setCornerRadius(cornerPx);
 
@@ -327,20 +357,40 @@ public class MainActivity extends Activity {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 if (!glassShown) return;
+                glassShiftY -= dy;
                 glass.setTranslationY(glass.getTranslationY() - dy);
             }
         });
 
         // Liquid feel: soft springs on the highlight's position.
-        springX = new SpringAnimation(glass, DynamicAnimation.TRANSLATION_X);
-        springY = new SpringAnimation(glass, DynamicAnimation.TRANSLATION_Y);
+        springX = new SpringAnimation(glass, new FloatPropertyCompat<View>("glassContentX") {
+            @Override
+            public float getValue(View v) {
+                return v.getTranslationX() - glassShiftX;
+            }
+
+            @Override
+            public void setValue(View v, float value) {
+                v.setTranslationX(value + glassShiftX);
+            }
+        });
+        springY = new SpringAnimation(glass, new FloatPropertyCompat<View>("glassContentY") {
+            @Override
+            public float getValue(View v) {
+                return v.getTranslationY() - glassShiftY;
+            }
+
+            @Override
+            public void setValue(View v, float value) {
+                v.setTranslationY(value + glassShiftY);
+            }
+        });
         for (SpringAnimation s : new SpringAnimation[]{springX, springY}) {
             if (reducedMotion) {
-                s.setSpring(new SpringForce().setStiffness(1400f).setDampingRatio(0.95f));
-                s.setMinimumVisibleChange(1.5f);
+                Motion.reduce(s);
             } else {
-                s.setSpring(new SpringForce().setStiffness(advancedEffects ? 380f : 300f)
-                        .setDampingRatio(advancedEffects ? 0.80f : 0.65f));
+                // Critically damped: glides straight onto the card without swinging past it.
+                s.setSpring(new SpringForce().setStiffness(advancedEffects ? 520f : 440f).setDampingRatio(1f));
             }
         }
 
@@ -666,6 +716,16 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** The app's colour, sampled once from its banner or icon. */
+    private int accentFor(String pkg, Drawable art) {
+        Integer c = accentCache.get(pkg);
+        if (c == null) {
+            c = AccentColor.vivid(art);
+            accentCache.put(pkg, c);
+        }
+        return c;
+    }
+
     private void reloadApps() {
         PackageManager pm = getPackageManager();
         Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
@@ -684,7 +744,7 @@ public class MainActivity extends Activity {
             }
             Drawable icon = ri.loadIcon(pm);
             String label = Cards.cleanLabel(String.valueOf(ri.loadLabel(pm)), pkg);
-            int accent = 0xFF444444;
+            int accent = accentFor(pkg, banner != null ? banner : icon);
             AppsRowAdapter.AppItem item = new AppsRowAdapter.AppItem(label, comp, banner, icon, accent);
             if (dock.contains(pkg)) {
                 favs.add(item);
@@ -761,6 +821,8 @@ public class MainActivity extends Activity {
 
     private void onCardFocused(View card, int accentColor) {
         hideHero();
+        moveGlass(card, accentColor);
+        if (ambientStyle == 0) return;
         if (advancedEffects) {
             transitionAmbient(accentColor);
         } else {
@@ -781,6 +843,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         isForeground = false;
+        resetGlass();
         stopAmbientAnimation();
         heroName.animate().cancel();
         ambient.animate().cancel();
@@ -832,11 +895,26 @@ public class MainActivity extends Activity {
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bmp);
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            paint.setShader(new RadialGradient(
-                    w * 0.32f, h * 0.42f, w * 0.62f,
-                    new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
-                    new float[]{0f, 0.45f, 1f},
-                    Shader.TileMode.CLAMP));
+            if (ambientStyle == 2) {
+                // Horizon: the colour washes down from the top edge and fades out three quarters of the way
+                // down, with a brighter band along the top like light over a horizon.
+                paint.setShader(new LinearGradient(0, 0, 0, h * 0.75f,
+                        new int[]{0x66FFFFFF, 0x24FFFFFF, 0x00FFFFFF},
+                        new float[]{0f, 0.4f, 1f},
+                        Shader.TileMode.CLAMP));
+                canvas.drawRect(0, 0, w, h, paint);
+                paint.setShader(new RadialGradient(
+                        w * 0.5f, -h * 0.25f, w * 0.55f,
+                        new int[]{0x40FFFFFF, 0x00FFFFFF},
+                        null,
+                        Shader.TileMode.CLAMP));
+            } else {
+                paint.setShader(new RadialGradient(
+                        w * 0.32f, h * 0.42f, w * 0.62f,
+                        new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
+                        new float[]{0f, 0.45f, 1f},
+                        Shader.TileMode.CLAMP));
+            }
             canvas.drawRect(0, 0, w, h, paint);
             glow = new BitmapDrawable(getResources(), bmp);
             glow.setGravity(Gravity.FILL);
@@ -881,6 +959,81 @@ public class MainActivity extends Activity {
             heroName.setAlpha(0f);
             ambient.setAlpha(0f);
         }
+    }
+
+    /**
+     * Glides the glass slab onto the focused card. The card's rect is in root coordinates from layout positions
+     * (the focus zoom keeps its centre), plus the translation of the rows above it.
+     */
+    private void moveGlass(View card, int accentColor) {
+        if (!glassEnabled) return;
+        // Focus restored before the first layout (cold start): the card has no size yet.
+        if (card.getWidth() == 0) {
+            card.post(() -> {
+                if (card.isFocused() && card.getWidth() > 0) moveGlass(card, accentColor);
+            });
+            return;
+        }
+        Rect r = tileRect;
+        r.set(0, 0, card.getWidth(), card.getHeight());
+        root.offsetDescendantRectToMyCoords(card, r);
+        float tx = 0f, ty = 0f;
+        ViewParent p = card.getParent();
+        while (p instanceof View && p != root) {
+            View v = (View) p;
+            tx += v.getTranslationX();
+            ty += v.getTranslationY();
+            p = v.getParent();
+        }
+        float pad = 6f * density;   // matches GlassView's glow inset
+        float scale = TvDesignTokens.FOCUS_SCALE;
+        float w = card.getWidth() * scale + 2 * pad;
+        float h = card.getHeight() * scale + 2 * pad;
+        float x = r.exactCenterX() + tx - w / 2f;
+        float y = r.exactCenterY() + ty - h / 2f;
+
+        ViewGroup.LayoutParams lp = glass.getLayoutParams();
+        if (lp.width != (int) w || lp.height != (int) h || card.getWidth() != glassCardW) {
+            lp.width = (int) w;
+            lp.height = (int) h;
+            glass.setLayoutParams(lp);
+            glass.setRadius(cornerPx * scale);
+        }
+        glassCardW = card.getWidth();
+        int accent = appGlow ? accentColor : 0;
+        if (accent != glassAccent) {
+            glassAccent = accent;
+            glass.setAccent(accent);
+        }
+        View item = (View) card.getParent();
+        ViewParent rail = item == null ? null : item.getParent();
+        glassRail = rail instanceof RecyclerView ? (RecyclerView) rail : null;
+        if (!glassShown) {
+            springX.cancel();
+            springY.cancel();
+            glass.setTranslationX(x);
+            glass.setTranslationY(y);
+            if (animations && !reducedMotion) glass.animate().alpha(1f).setDuration(180).start();
+            else glass.setAlpha(1f);
+            glassShown = true;
+        } else if (!animations) {
+            springX.cancel();
+            springY.cancel();
+            glass.setTranslationX(x);
+            glass.setTranslationY(y);
+        } else {
+            springX.animateToFinalPosition(x - glassShiftX);
+            springY.animateToFinalPosition(y - glassShiftY);
+        }
+    }
+
+    /** Nothing of the glass stays on screen over another app, or from before a rebuild. */
+    private void resetGlass() {
+        if (springX != null) springX.cancel();
+        if (springY != null) springY.cancel();
+        glass.animate().cancel();
+        glass.setAlpha(0f);
+        glassShown = false;
     }
 
     private void hideGlass() {
