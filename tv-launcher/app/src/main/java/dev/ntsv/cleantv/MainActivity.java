@@ -256,8 +256,8 @@ public class MainActivity extends Activity {
         appGlow = cfg.appGlow;
         ambientStyle = cfg.ambientStyle;
         if (glass != null) glass.setVisibility(glassEnabled ? View.VISIBLE : View.GONE);
-        if (ambientStyle == 0) ambient.setVisibility(View.GONE);
         ambient = findViewById(R.id.ambient);
+        if (ambientStyle == 0) ambient.setVisibility(View.GONE);
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first.
         ambient.forceHasOverlappingRendering(false);
