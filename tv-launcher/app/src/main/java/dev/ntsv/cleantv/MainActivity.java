@@ -728,8 +728,13 @@ public class MainActivity extends Activity {
 
     private void reloadApps() {
         PackageManager pm = getPackageManager();
-        Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        List<ResolveInfo> found = pm.queryIntentActivities(probe, 0);
+        // A TV lists its Leanback apps; a phone or tablet (or a TV with none) lists the ordinary launcher apps.
+        boolean tv = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+        List<ResolveInfo> found = tv ? pm.queryIntentActivities(
+                new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0) : new ArrayList<>();
+        if (found.isEmpty()) {
+            found = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0);
+        }
         List<AppsRowAdapter.AppItem> favs = new ArrayList<>();
         List<AppsRowAdapter.AppItem> others = new ArrayList<>();
         List<String> dock = pinnedApps;
