@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                focusRail(railOrder.isEmpty() ? RailsAdapter.RAIL_APPS : railOrder.get(0));
+                focusLastCard();
                 return true;
             }
             int firstButton = (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
@@ -800,9 +800,73 @@ public class MainActivity extends Activity {
         if (idx < 0) {
             if (btnWifi != null) btnWifi.requestFocus();   // above the top row: the top bar
         } else if (idx < railOrder.size()) {
-            focusRail(railOrder.get(idx));
+            focusRailAligned(railOrder.get(idx));
         }
         return true;
+    }
+
+    /** The card focus was last on: which rail, its position in it, and where it sat sideways on screen. */
+    private int lastRailType = RailsAdapter.RAIL_APPS;
+    private int lastCardIndex = 0;
+    private float lastCardCenterX = -1f;
+
+    private void rememberCard(View card) {
+        View item = (View) card.getParent();
+        if (item == null || !(item.getParent() instanceof RecyclerView)) return;
+        RecyclerView rail = (RecyclerView) item.getParent();
+        int index = rail.getChildAdapterPosition(item);
+        View row = rail;
+        while (row.getParent() != grid && row.getParent() instanceof View) row = (View) row.getParent();
+        int type = railsAdapter.typeAt(grid.getChildAdapterPosition(row));
+        if (index < 0 || type < 0) return;
+        lastRailType = type;
+        lastCardIndex = index;
+        int[] loc = new int[2];
+        card.getLocationOnScreen(loc);
+        lastCardCenterX = loc[0] + card.getWidth() / 2f;
+    }
+
+    /** Down from the top bar: back to the card focus came from, not the first card of the top row. */
+    private void focusLastCard() {
+        int pos = railsAdapter.positionOfType(lastRailType);
+        if (pos >= 0 && lastCardIndex >= 0) {
+            RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
+            RecyclerView.Adapter<?> items = vh instanceof RailsAdapter.RailViewHolder
+                    ? ((RailsAdapter.RailViewHolder) vh).recycler.getAdapter() : null;
+            if (items == null || lastCardIndex < items.getItemCount()) {
+                focusRailItem(lastRailType, lastCardIndex);
+                return;
+            }
+        }
+        focusRail(railOrder.isEmpty() ? RailsAdapter.RAIL_APPS : railOrder.get(0));
+    }
+
+    /** Up or down to another rail: lands on the card nearest sideways to the one left, so columns line up. */
+    private void focusRailAligned(int railType) {
+        int pos = railsAdapter.positionOfType(railType);
+        RecyclerView.ViewHolder vh = pos < 0 ? null : grid.findViewHolderForAdapterPosition(pos);
+        if (vh instanceof RailsAdapter.RailViewHolder && lastCardCenterX >= 0f) {
+            RecyclerView rail = ((RailsAdapter.RailViewHolder) vh).recycler;
+            int best = -1;
+            float bestDistance = Float.MAX_VALUE;
+            int[] loc = new int[2];
+            for (int i = 0; i < rail.getChildCount(); i++) {
+                View child = rail.getChildAt(i);
+                int childPos = rail.getChildAdapterPosition(child);
+                if (childPos < 0) continue;
+                child.getLocationOnScreen(loc);
+                float distance = Math.abs(loc[0] + child.getWidth() / 2f - lastCardCenterX);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = childPos;
+                }
+            }
+            if (best >= 0) {
+                focusRailItem(railType, best);
+                return;
+            }
+        }
+        focusRail(railType);
     }
 
     /** Focuses the first card of a rail, given as a RailsAdapter.RAIL_* type (not a position: hidden rails shift those). */
@@ -826,6 +890,7 @@ public class MainActivity extends Activity {
 
     private void onCardFocused(View card, int accentColor) {
         hideHero();
+        rememberCard(card);
         moveGlass(card, accentColor);
         if (ambientStyle == 0) return;
         if (advancedEffects) {
