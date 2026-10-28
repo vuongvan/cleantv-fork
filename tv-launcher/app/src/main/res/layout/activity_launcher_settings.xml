@@ -101,6 +101,11 @@
             android:textSize="14sp" />
 
         <TextView
+            android:id="@+id/namesChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView
             android:id="@+id/glassChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
@@ -182,6 +187,12 @@
             style="@style/SettingsRow"
             android:layout_marginTop="10dp"
             android:text="@string/remove_wallpaper" />
+
+        <TextView
+            android:id="@+id/resetOrderChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/reset_order" />
 
         <TextView
             android:id="@+id/resetFavoritesChoice"

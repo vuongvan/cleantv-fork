@@ -34,6 +34,8 @@ final class Config {
     static final String SETTINGS_NAME = "launcher_settings";
     /** On-TV choices (SharedPreferences SETTINGS_NAME) added for the lunar date, hideable rows and pinned apps. */
     static final String KEY_LUNAR_DATE = "lunar_date";
+    static final String KEY_ALWAYS_SHOW_NAMES = "always_show_names";
+    static final String KEY_APP_ORDER = "app_order";
     static final String KEY_GLASS_EFFECT = "glass_effect";
     static final String KEY_APP_GLOW = "app_glow";
     static final String KEY_AMBIENT_STYLE = "ambient_style";
@@ -82,6 +84,8 @@ final class Config {
     final boolean appGlow;
     /** Glow behind the screen: 0 off, 1 radial, 2 horizon. */
     final int ambientStyle;
+    /** A name under every card, dimmed until focused (false: the name appears on the focused card only). */
+    final boolean alwaysShowNames;
     final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
@@ -101,7 +105,7 @@ final class Config {
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
                    boolean shamsiDate, boolean lunarDate,
                    boolean showAllAppsRail, boolean favoritesBottom, int favoriteSize,
-                   int cornerRadius, int favoriteOffset, boolean glassEffect, boolean appGlow, int ambientStyle,
+                   int cornerRadius, int favoriteOffset, boolean glassEffect, boolean appGlow, int ambientStyle, boolean alwaysShowNames,
                    boolean moduleCards, boolean reducedMotion, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, boolean overlayApplied) {
@@ -126,6 +130,7 @@ final class Config {
         this.glassEffect = glassEffect;
         this.appGlow = appGlow;
         this.ambientStyle = ambientStyle;
+        this.alwaysShowNames = alwaysShowNames;
         this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
         this.vpnApp = vpnApp;
@@ -203,6 +208,7 @@ final class Config {
         boolean showAllApps = choices.getBoolean(KEY_RAIL_ALL_APPS, true);
         boolean favoritesBottom = choices.getBoolean(KEY_FAVORITES_BOTTOM, false);
         boolean glassEffect = choices.getBoolean(KEY_GLASS_EFFECT, true);
+        boolean alwaysShowNames = choices.getBoolean(KEY_ALWAYS_SHOW_NAMES, false);
         boolean appGlow = choices.getBoolean(KEY_APP_GLOW, true);
         int ambientStyle = Math.max(0, Math.min(2, choices.getInt(KEY_AMBIENT_STYLE, 1)));
         int cornerRadius = Math.max(0, Math.min(MAX_CORNER_RADIUS, choices.getInt(KEY_CORNER_RADIUS, 0)));
@@ -217,9 +223,22 @@ final class Config {
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, lunar, showAllApps, favoritesBottom, favoriteSize, cornerRadius, favoriteOffset, glassEffect, appGlow, ambientStyle,
+                shamsi, lunar, showAllApps, favoritesBottom, favoriteSize, cornerRadius, favoriteOffset, glassEffect, appGlow, ambientStyle, alwaysShowNames,
                 moduleCards, reducedMotion, vpn, homeSettings, background,
                 Math.max(0, Math.min(100, skyIntensity)), wallpaper, applied);
+    }
+
+    /** The owner's own order of the All Apps row (packages), first to last; empty when never reordered. */
+    static List<String> loadAppOrder(SharedPreferences choices) {
+        List<String> out = new ArrayList<>();
+        for (String pkg : choices.getString(KEY_APP_ORDER, "").split("\\n")) {
+            if (!pkg.trim().isEmpty()) out.add(pkg.trim());
+        }
+        return out;
+    }
+
+    static void saveAppOrder(SharedPreferences choices, List<String> order) {
+        choices.edit().putString(KEY_APP_ORDER, android.text.TextUtils.join("\n", order)).apply();
     }
 
     /** Pinned packages in order, or null when the owner never pinned anything (dock_apps applies). */

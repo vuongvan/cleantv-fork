@@ -121,6 +121,8 @@ public class MainActivity extends Activity {
     private final List<Integer> railOrder = new ArrayList<>();
     /** Size of every Favorite Apps card, 1 = normal (Config.favoriteSize / 10). */
     private float favoriteScale = 1f;
+    /** The owner's own order of the All Apps row (packages); apps not in it follow alphabetically. */
+    private List<String> appOrder = new ArrayList<>();
 
     private RailsAdapter railsAdapter;
     private RailCardsAdapter favAppsAdapter;
@@ -278,6 +280,7 @@ public class MainActivity extends Activity {
         showAllAppsRail = cfg.showAllAppsRail;
         favoritesBottom = cfg.favoritesBottom;
         favoriteScale = cfg.favoriteSize / 10f;
+        appOrder = Config.loadAppOrder(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE));
         vpnApp = cfg.vpnApp;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
@@ -333,6 +336,8 @@ public class MainActivity extends Activity {
         railsAdapter.setFavoriteOffset(favoritesBottom ? Math.round(cfg.favoriteOffset * density) : 0);
         cornerPx = Math.round(cfg.cornerRadius * density);
         favAppsAdapter.setColoredGlow(appGlow);
+        favAppsAdapter.setAlwaysShowNames(cfg.alwaysShowNames);
+        allAppsAdapter.setAlwaysShowNames(cfg.alwaysShowNames);
         allAppsAdapter.setColoredGlow(appGlow);
         favAppsAdapter.setCornerRadius(cornerPx);
         allAppsAdapter.setCornerRadius(cornerPx);
@@ -595,6 +600,28 @@ public class MainActivity extends Activity {
         reloadApps();
     }
 
+    /** A banner at no less than xhdpi detail, or null: a square "banner" counts as none (the tile shows icon and name). */
+    private Drawable loadBanner(PackageManager pm, ResolveInfo ri) {
+        int id = ri.activityInfo.banner;
+        if (id == 0 && ri.activityInfo.applicationInfo != null) id = ri.activityInfo.applicationInfo.banner;
+        Drawable banner = null;
+        if (id != 0 && ri.activityInfo.applicationInfo != null) {
+            try {
+                android.content.res.Resources resources = pm.getResourcesForApplication(ri.activityInfo.applicationInfo);
+                int dpi = Math.max(android.util.DisplayMetrics.DENSITY_XHIGH, getResources().getDisplayMetrics().densityDpi);
+                banner = resources.getDrawableForDensity(id, dpi, null);
+            } catch (PackageManager.NameNotFoundException | android.content.res.Resources.NotFoundException ignored) {
+            }
+        }
+        if (banner == null) banner = ri.activityInfo.loadBanner(pm);
+        return banner != null && isBannerShaped(banner.getIntrinsicWidth(), banner.getIntrinsicHeight()) ? banner : null;
+    }
+
+    /** Some apps declare a small square image as their banner; cropped over a 16:9 tile it is a blur. */
+    private static boolean isBannerShaped(int width, int height) {
+        return width <= 0 || height <= 0 || width >= height * 1.4f;
+    }
+
     private RailCard createAppCard(AppsRowAdapter.AppItem item) {
         RailCard.ArtworkStyle style = (item.banner != null)
                 ? RailCard.ArtworkStyle.BANNER_FILL
@@ -649,6 +676,17 @@ public class MainActivity extends Activity {
                 actions.add(() -> moveFavorite(ai, 1));
             }
         }
+        final int allIndex = indexOfCard(allAppsAdapter, ai.pkg);
+        if (allIndex >= 0) {
+            if (allIndex > 0) {
+                labels.add(getString(R.string.move_left));
+                actions.add(() -> moveOther(ai, -1));
+            }
+            if (allIndex < allAppsAdapter.getItemCount() - 1) {
+                labels.add(getString(R.string.move_right));
+                actions.add(() -> moveOther(ai, 1));
+            }
+        }
         labels.add(getString(R.string.app_info));
         actions.add(() -> {
             Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ai.pkg));
@@ -668,6 +706,22 @@ public class MainActivity extends Activity {
             if (id.equals(items.get(i).id)) return i;
         }
         return -1;
+    }
+
+    /** Moves an app in the All Apps row: the row's whole order becomes the owner's own order. */
+    private void moveOther(AppsRowAdapter.AppItem ai, int delta) {
+        int index = indexOfCard(allAppsAdapter, ai.pkg);
+        int other = index + delta;
+        if (index < 0 || other < 0 || other >= allAppsAdapter.getItemCount()) return;
+        List<String> order = new ArrayList<>();
+        for (RailCard c : allAppsAdapter.getItems()) order.add(c.id);
+        Collections.swap(order, index, other);
+        // Apps in the old order that are not in this row (pinned meanwhile) keep their place behind it.
+        for (String pkg : appOrder) if (!order.contains(pkg)) order.add(pkg);
+        appOrder = order;
+        Config.saveAppOrder(getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE), order);
+        reloadApps();
+        grid.post(() -> focusRailItem(RailsAdapter.RAIL_ALL_APPS, other));
     }
 
     /** Swaps a favorite with its neighbour in the row and keeps focus on it. */
@@ -738,17 +792,18 @@ public class MainActivity extends Activity {
         List<AppsRowAdapter.AppItem> favs = new ArrayList<>();
         List<AppsRowAdapter.AppItem> others = new ArrayList<>();
         List<String> dock = pinnedApps;
+        // Some system apps declare two entry points under one name: keep the first per package and label.
+        Set<String> seen = new HashSet<>();
         for (ResolveInfo ri : found) {
-            if (ri.activityInfo == null) continue;
+            if (ri.activityInfo == null || !ri.activityInfo.exported) continue;
             String pkg = ri.activityInfo.packageName;
             if (pkg.equals(getPackageName()) || hiddenApps.contains(pkg)) continue;
-            ComponentName comp = new ComponentName(pkg, ri.activityInfo.name);
-            Drawable banner = ri.activityInfo.loadBanner(pm);
-            if (banner == null && ri.activityInfo.applicationInfo != null) {
-                banner = ri.activityInfo.applicationInfo.loadBanner(pm);
-            }
-            Drawable icon = ri.loadIcon(pm);
             String label = Cards.cleanLabel(String.valueOf(ri.loadLabel(pm)), pkg);
+            if (!seen.add(pkg + '\n' + label)) continue;
+            ComponentName comp = new ComponentName(pkg, ri.activityInfo.name);
+            Drawable banner = loadBanner(pm, ri);
+            // The icon is only drawn when there is no banner, so a tile with a banner skips loading it.
+            Drawable icon = banner == null ? ri.loadIcon(pm) : null;
             int accent = accentFor(pkg, banner != null ? banner : icon);
             AppsRowAdapter.AppItem item = new AppsRowAdapter.AppItem(label, comp, banner, icon, accent);
             if (dock.contains(pkg)) {
@@ -757,8 +812,20 @@ public class MainActivity extends Activity {
                 others.add(item);
             }
         }
-        Collections.sort(favs, (a, b) -> Integer.compare(dock.indexOf(a.pkg), dock.indexOf(b.pkg)));
-        Collections.sort(others, (a, b) -> a.label.compareToIgnoreCase(b.label));
+        // Favorites: the owner's pin order. The rest: the owner's own order first, then apps it does not know
+        // (new installs) alphabetically.
+        Collections.sort(favs, (x, y) -> Integer.compare(dock.indexOf(x.pkg), dock.indexOf(y.pkg)));
+        final java.util.Map<String, Integer> rank = new HashMap<>();
+        for (int i = 0; i < appOrder.size(); i++) rank.put(appOrder.get(i), i);
+        Collections.sort(others, (x, y) -> {
+            Integer rx = rank.get(x.pkg), ry = rank.get(y.pkg);
+            if (rx != null || ry != null) {
+                if (rx == null) return 1;
+                if (ry == null) return -1;
+                return Integer.compare(rx, ry);
+            }
+            return x.label.compareToIgnoreCase(y.label);
+        });
 
         List<RailCard> favCards = new ArrayList<>();
         for (AppsRowAdapter.AppItem it : favs) {

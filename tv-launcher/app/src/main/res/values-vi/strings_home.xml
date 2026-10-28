@@ -36,4 +36,7 @@
     <string name="ambient_off">Tắt</string>
     <string name="ambient_radial">Tỏa tròn</string>
     <string name="ambient_horizon">Đường chân trời</string>
+    <string name="names_state">Hiện tên dưới mọi thẻ: %1$s</string>
+    <string name="reset_order">Khôi phục thứ tự ứng dụng theo bảng chữ cái</string>
+    <string name="reset_order_done">Đã khôi phục thứ tự ứng dụng</string>
 </resources>

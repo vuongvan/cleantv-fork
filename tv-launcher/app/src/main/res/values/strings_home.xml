@@ -35,4 +35,7 @@
     <string name="ambient_off">Off</string>
     <string name="ambient_radial">Radial</string>
     <string name="ambient_horizon">Horizon</string>
+    <string name="names_state">Name under every card: %1$s</string>
+    <string name="reset_order">Reset app order to alphabetical</string>
+    <string name="reset_order_done">App order reset</string>
 </resources>

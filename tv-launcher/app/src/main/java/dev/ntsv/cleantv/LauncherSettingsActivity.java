@@ -25,6 +25,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView glassChoice;
     private TextView appGlowChoice;
     private TextView ambientChoice;
+    private TextView namesChoice;
+    private boolean alwaysShowNames;
     private boolean glassEffect;
     private boolean appGlow;
     private int ambientStyle;
@@ -51,6 +53,7 @@ public final class LauncherSettingsActivity extends Activity {
         glassEffect = config.glassEffect;
         appGlow = config.appGlow;
         ambientStyle = config.ambientStyle;
+        alwaysShowNames = config.alwaysShowNames;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -139,6 +142,18 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().putInt(Config.KEY_AMBIENT_STYLE, ambientStyle).apply();
             setResult(RESULT_OK);
             refresh();
+        });
+        namesChoice = findViewById(R.id.namesChoice);
+        namesChoice.setOnClickListener(v -> {
+            alwaysShowNames = !alwaysShowNames;
+            choices.edit().putBoolean(Config.KEY_ALWAYS_SHOW_NAMES, alwaysShowNames).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        findViewById(R.id.resetOrderChoice).setOnClickListener(v -> {
+            choices.edit().remove(Config.KEY_APP_ORDER).apply();
+            Toast.makeText(this, R.string.reset_order_done, Toast.LENGTH_SHORT).show();
+            setResult(RESULT_OK);
         });
         bindSlider(R.id.favoriteSizeLabel, R.id.favoriteSizeBar, R.string.favorite_size_label,
                 Config.MIN_FAVORITE_SIZE, Config.MAX_FAVORITE_SIZE, config.favoriteSize, Config.KEY_FAVORITE_SIZE);
@@ -273,6 +288,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(lunarDate ? R.string.on : R.string.off)));
         railAllAppsChoice.setText(getString(R.string.rail_all_apps_state,
                 getString(showAllAppsRail ? R.string.rail_shown : R.string.rail_hidden)));
+        namesChoice.setText(getString(R.string.names_state,
+                getString(alwaysShowNames ? R.string.on : R.string.off)));
         glassChoice.setText(getString(R.string.glass_effect_state,
                 getString(glassEffect ? R.string.on : R.string.off)));
         appGlowChoice.setText(getString(R.string.app_glow_state,

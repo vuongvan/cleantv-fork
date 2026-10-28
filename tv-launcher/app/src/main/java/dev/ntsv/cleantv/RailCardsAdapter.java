@@ -40,6 +40,12 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
     private NavigationListener navigationListener;
     private int cornerRadiusPx;
     private boolean coloredGlow = true;
+    /** Alpha of a card's title while it is not focused: 0 (hidden) or 0.75 (always show names). */
+    private float restNameAlpha;
+
+    public void setAlwaysShowNames(boolean always) {
+        restNameAlpha = always ? 0.75f : 0f;
+    }
 
     /** Glow of the focused card in the app's colour (true) or plain white (false). */
     public void setColoredGlow(boolean colored) {
@@ -82,9 +88,11 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         applyScale(holder, card.scale);
         holder.setCornerRadius(cornerRadiusPx);
         holder.title.setText(card.title);
-        holder.title.setVisibility(View.INVISIBLE);
-        holder.title.setAlpha(0f);
-        holder.title.setTranslationY(-6f * holder.title.getResources().getDisplayMetrics().density);
+        float titleDensity = holder.title.getResources().getDisplayMetrics().density;
+        boolean focusedNow = holder.card.isFocused();   // a rebind can hit the focused card
+        holder.title.setVisibility(focusedNow || restNameAlpha > 0f ? View.VISIBLE : View.INVISIBLE);
+        holder.title.setAlpha(focusedNow ? 1f : restNameAlpha);
+        holder.title.setTranslationY(focusedNow ? 4f * titleDensity : (restNameAlpha > 0f ? 0f : -6f * titleDensity));
 
         // Reset visibility
         holder.bannerFill.setVisibility(View.GONE);
@@ -144,7 +152,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
 
         // Unified elevation shadow & text motion from TvDesignTokens
         holder.card.setOnFocusChangeListener((v, hasFocus) -> {
-            TvDesignTokens.animateFocus(v, holder.title, hasFocus);
+            TvDesignTokens.animateFocus(v, holder.title, hasFocus, restNameAlpha);
             holder.setFocusFx(hasFocus, coloredGlow ? card.accentColor : 0);
             if (hasFocus && focusListener != null) {
                 focusListener.onCardFocus(card, v);
@@ -186,7 +194,7 @@ public class RailCardsAdapter extends RecyclerView.Adapter<RailCardsAdapter.View
         int hgt = Math.round(101 * d * scale);
         setSize(h.card, w, hgt);
         FrameLayout.LayoutParams tlp = (FrameLayout.LayoutParams) h.title.getLayoutParams();
-        int top = hgt + Math.round(7 * d);
+        int top = hgt + Math.round(4 * d);
         if (tlp.width != w || tlp.topMargin != top) {
             tlp.width = w;
             tlp.topMargin = top;
